@@ -3,7 +3,7 @@
 ## Overview
 
 Instructions for creating grpc client and make request to Google Cloud APIs.
-This can be used to test the functionatily of the gRPC calls to the Cloud
+This can be used to test the functionality of the gRPC calls to the Cloud
 Services. For this instruction, we take Firestore API as an example.
 
 ## Prerequisites
@@ -75,8 +75,29 @@ Install grpc and protobuf packages:
 ```sh
 $ dotnet add Google.Cloud.Firestore.V1Beta1 package Grpc
 $ dotnet add Google.Cloud.Firestore.V1Beta1 package Grpc.Tools
+$ dotnet add Google.Cloud.Firestore.V1Beta1 package Google.Protobuf
 $ dotnet add Google.Cloud.Firestore.V1Beta1 package Google.Protobuf.Tools
 $ dotnet add Google.Cloud.Firestore.V1Beta1 package Google.Api.Gax.Grpc
+```
+
+Alternatively, we can manually add the dependencies to the
+Google.Cloud.Firestore.V1Beta1.csproj file, and then use `dotnet restore` to
+install those packages:
+
+```csproj
+<Project Sdk="Microsoft.NET.Sdk">
+
+  ...
+
+  <ItemGroup>
+    <PackageReference Include="Google.Api.Gax.Grpc" Version="2.3.0" />
+    <PackageReference Include="Google.Protobuf" Version="3.5.1" />
+    <PackageReference Include="Google.Protobuf.Tools" Version="3.5.1" />
+    <PackageReference Include="Grpc" Version="1.11.0" />
+    <PackageReference Include="Grpc.Tools" Version="1.11.0" />
+  </ItemGroup>
+
+</Project>
 ```
 
 These packages will be installed to the default location for global-packages. To
@@ -88,15 +109,19 @@ $ dotnet nuget locals all --list
 
 ### Generate grpc C# code for Google Cloud API
 
-Download source proto file from [googleapis](https://github.com/googleapis/googleapis)
+Download .proto file from [googleapis](https://github.com/googleapis/googleapis)
 
 ```sh
 $ git clone https://github.com/googleapis/googleapis.git
 ```
 
 Use protoc from Grpc.Tools to generate grpc client code based on the proto file
-we have just downloaded. In this example, we would need all .proto files under
-googleapis/google/firestore/v1beta1/
+we have just downloaded. You will need to specify not only the .proto file that
+you want to code-generate, but also the dependency proto libraries they share.
+For example, if foo.proto has dependency on bar.proto, you need to specify both
+foo.proto and bar.proto in the code generation command.
+
+In this example, we only need the .proto files under googleapis/google/firestore/v1beta1/
 
 ```sh
 # Setup environment variables.
@@ -123,7 +148,7 @@ $ dotnet new console -o Google.Cloud.Firestore.V1Beta1.Test
 
 In
 Google.Cloud.Firestore.V1Beta1.Test/Google.Cloud.Firestore.V1Beta1.Test.csproj
-add a ProjectReference to ItemGroup to  include the API project we created
+add a ProjectReference to ItemGroup to include the API project we created
 before.
 
 ```csproj
