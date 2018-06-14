@@ -18,7 +18,7 @@ namespace Grpc.Gcp.IntegrationTest
         private const string DATABASE = "projects/grpc-gcp/instances/sample/databases/benchmark";
         private const string OAUTH_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
         private const Int32 DEFAULT_MAX_CHANNELS_PER_TARGET = 10;
-        private GrpcGcp.ApiConfig config = new GrpcGcp.ApiConfig();
+        private ApiConfig config = new ApiConfig();
         private Spanner.SpannerClient client;
 
         [TestInitialize]
@@ -41,28 +41,28 @@ namespace Grpc.Gcp.IntegrationTest
 
         private void InitApiConfig()
         {
-            config.ChannelPool = new GrpcGcp.ChannelPoolConfig();
+            config.ChannelPool = new ChannelPoolConfig();
             config.ChannelPool.MaxConcurrentStreamsLowWatermark = 1;
             config.ChannelPool.MaxSize = 10;
-            AddMethod(config, "/google.spanner.v1.Spanner/CreateSession", GrpcGcp.AffinityConfig.Types.Command.Bind, "name");
-            AddMethod(config, "/google.spanner.v1.Spanner/GetSession", GrpcGcp.AffinityConfig.Types.Command.Bound, "name");
-            AddMethod(config, "/google.spanner.v1.Spanner/DeleteSession", GrpcGcp.AffinityConfig.Types.Command.Unbind, "name");
-            AddMethod(config, "/google.spanner.v1.Spanner/ExecuteSql", GrpcGcp.AffinityConfig.Types.Command.Bound, "session");
-            AddMethod(config, "/google.spanner.v1.Spanner/ExecuteStreamingSql", GrpcGcp.AffinityConfig.Types.Command.Bound, "session");
-            AddMethod(config, "/google.spanner.v1.Spanner/Read", GrpcGcp.AffinityConfig.Types.Command.Bound, "session");
-            AddMethod(config, "/google.spanner.v1.Spanner/StreamingRead", GrpcGcp.AffinityConfig.Types.Command.Bound, "session");
-            AddMethod(config, "/google.spanner.v1.Spanner/BeginTransaction", GrpcGcp.AffinityConfig.Types.Command.Bound, "session");
-            AddMethod(config, "/google.spanner.v1.Spanner/Commit", GrpcGcp.AffinityConfig.Types.Command.Bound, "session");
-            AddMethod(config, "/google.spanner.v1.Spanner/Rollback", GrpcGcp.AffinityConfig.Types.Command.Bound, "session");
-            AddMethod(config, "/google.spanner.v1.Spanner/PartitionQuery", GrpcGcp.AffinityConfig.Types.Command.Bound, "session");
-            AddMethod(config, "/google.spanner.v1.Spanner/PartitionRead", GrpcGcp.AffinityConfig.Types.Command.Bound, "session");
+            AddMethod(config, "/google.spanner.v1.Spanner/CreateSession", AffinityConfig.Types.Command.Bind, "name");
+            AddMethod(config, "/google.spanner.v1.Spanner/GetSession", AffinityConfig.Types.Command.Bound, "name");
+            AddMethod(config, "/google.spanner.v1.Spanner/DeleteSession", AffinityConfig.Types.Command.Unbind, "name");
+            AddMethod(config, "/google.spanner.v1.Spanner/ExecuteSql", AffinityConfig.Types.Command.Bound, "session");
+            AddMethod(config, "/google.spanner.v1.Spanner/ExecuteStreamingSql", AffinityConfig.Types.Command.Bound, "session");
+            AddMethod(config, "/google.spanner.v1.Spanner/Read", AffinityConfig.Types.Command.Bound, "session");
+            AddMethod(config, "/google.spanner.v1.Spanner/StreamingRead", AffinityConfig.Types.Command.Bound, "session");
+            AddMethod(config, "/google.spanner.v1.Spanner/BeginTransaction", AffinityConfig.Types.Command.Bound, "session");
+            AddMethod(config, "/google.spanner.v1.Spanner/Commit", AffinityConfig.Types.Command.Bound, "session");
+            AddMethod(config, "/google.spanner.v1.Spanner/Rollback", AffinityConfig.Types.Command.Bound, "session");
+            AddMethod(config, "/google.spanner.v1.Spanner/PartitionQuery", AffinityConfig.Types.Command.Bound, "session");
+            AddMethod(config, "/google.spanner.v1.Spanner/PartitionRead", AffinityConfig.Types.Command.Bound, "session");
         }
 
-        private void AddMethod(GrpcGcp.ApiConfig config, string name, GrpcGcp.AffinityConfig.Types.Command command, string affinityKey)
+        private void AddMethod(ApiConfig config, string name, AffinityConfig.Types.Command command, string affinityKey)
         {
-            GrpcGcp.MethodConfig method = new GrpcGcp.MethodConfig();
+            MethodConfig method = new MethodConfig();
             method.Name.Add(name);
-            method.Affinity = new GrpcGcp.AffinityConfig();
+            method.Affinity = new AffinityConfig();
             method.Affinity.Command = command;
             method.Affinity.AffinityKey = affinityKey;
             config.Method.Add(method);
