@@ -1,0 +1,1 @@
+packages\Grpc.Tools.1.12.0\tools\windows_x86\protoc.exe -Iprotos --csharp_out Grpc.Gcp protos/grpc_gcp.proto
