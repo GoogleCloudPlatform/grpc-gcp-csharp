@@ -17,6 +17,8 @@ namespace Grpc.Gcp.IntegrationTest
     {
         private const string TARGET = "spanner.googleapis.com";
         private const string DATABASE = "projects/grpc-gcp/instances/sample/databases/benchmark";
+        private const string TABLE = "storage";
+        private const string COLUMN_ID_PAYLOAD = "payload";
         private const string OAUTH_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
         private const Int32 DEFAULT_MAX_CHANNELS_PER_TARGET = 10;
         private ApiConfig config = new ApiConfig();
@@ -137,7 +139,41 @@ namespace Grpc.Gcp.IntegrationTest
                 Assert.AreEqual(0, invoker.channelRefs[0].AffinityRef);
                 Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
             }
+        }
 
+        [TestMethod]
+        public void ExecuteSql()
+        {
+            Session session;
+            {
+                CreateSessionRequest request = new CreateSessionRequest();
+                request.Database = DATABASE;
+                session = client.CreateSession(request);
+                Assert.IsNotNull(session);
+                Assert.AreEqual(1, invoker.channelRefs.Count);
+                Assert.AreEqual(1, invoker.channelRefs[0].AffinityRef);
+                Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
+            }
+            {
+                ExecuteSqlRequest request = new ExecuteSqlRequest();
+                request.Session = session.Name;
+                request.Sql = string.Format("select id, data from {0}", TABLE);
+                ResultSet resultSet = client.ExecuteSql(request);
+                Assert.AreEqual(1, invoker.channelRefs.Count);
+                Assert.AreEqual(1, invoker.channelRefs[0].AffinityRef);
+                Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
+                Assert.IsNotNull(resultSet);
+                Assert.AreEqual(1, resultSet.Rows.Count);
+                Assert.AreEqual(COLUMN_ID_PAYLOAD, resultSet.Rows[0].Values[0].StringValue);
+            }
+            {
+                DeleteSessionRequest request = new DeleteSessionRequest();
+                request.Name = session.Name;
+                client.DeleteSession(request);
+                Assert.AreEqual(1, invoker.channelRefs.Count);
+                Assert.AreEqual(0, invoker.channelRefs[0].AffinityRef);
+                Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
+            }
         }
     }
 }
