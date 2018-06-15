@@ -8,6 +8,7 @@ using Grpc.Core;
 using Google.Protobuf;
 using System.IO;
 using System.Text;
+using System.Linq;
 
 namespace Grpc.Gcp.IntegrationTest
 {
@@ -19,6 +20,7 @@ namespace Grpc.Gcp.IntegrationTest
         private const string OAUTH_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
         private const Int32 DEFAULT_MAX_CHANNELS_PER_TARGET = 10;
         private ApiConfig config = new ApiConfig();
+        private DefaultCallInvoker invoker;
         private Spanner.SpannerClient client;
 
         [TestInitialize]
@@ -35,7 +37,7 @@ namespace Grpc.Gcp.IntegrationTest
             config.WriteTo(stream);
             IList<ChannelOption> options = new List<ChannelOption>() {
                 new ChannelOption(DefaultCallInvoker.GRPC_GCP_CHANNEL_ARG_API_CONFIG, Encoding.Default.GetString(stream.ToArray())) };
-            DefaultCallInvoker invoker = new DefaultCallInvoker(TARGET, credential.ToChannelCredentials(), options);
+            invoker = new DefaultCallInvoker(TARGET, credential.ToChannelCredentials(), options);
             client = new Spanner.SpannerClient(invoker);
         }
 
@@ -71,7 +73,7 @@ namespace Grpc.Gcp.IntegrationTest
         [TestMethod]
         public void CreateSessionWithReusedChannel()
         {
-            for (int i = 0; i < DEFAULT_MAX_CHANNELS_PER_TARGET; i++)
+            for (int i = 0; i < DEFAULT_MAX_CHANNELS_PER_TARGET * 2; i++)
             {
                 Session session;
                 {
@@ -79,6 +81,7 @@ namespace Grpc.Gcp.IntegrationTest
                     request.Database = DATABASE;
                     session = client.CreateSession(request);
                     Assert.IsNotNull(session);
+                    Assert.AreEqual(1, invoker.channelRefs.Count);
                 }
                 {
                     DeleteSessionRequest request = new DeleteSessionRequest();
@@ -86,6 +89,55 @@ namespace Grpc.Gcp.IntegrationTest
                     client.DeleteSession(request);
                 }
             }
+        }
+
+        [TestMethod]
+        public void CreateListDeleteSession()
+        {
+            Session session;
+            {
+                CreateSessionRequest request = new CreateSessionRequest();
+                request.Database = DATABASE;
+                session = client.CreateSession(request);
+                Assert.IsNotNull(session);
+                Assert.AreEqual(1, invoker.channelRefs.Count);
+                Assert.AreEqual(1, invoker.channelRefs[0].AffinityRef);
+                Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
+            }
+
+            {
+                ListSessionsRequest request = new ListSessionsRequest();
+                request.Database = DATABASE;
+                ListSessionsResponse response = client.ListSessions(request);
+                Assert.IsNotNull(response);
+                Assert.IsNotNull(response.Sessions);
+                Assert.IsTrue(response.Sessions.Any(item => item.Name == session.Name));
+                Assert.AreEqual(1, invoker.channelRefs.Count);
+                Assert.AreEqual(1, invoker.channelRefs[0].AffinityRef);
+                Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
+            }
+
+            {
+                DeleteSessionRequest request = new DeleteSessionRequest();
+                request.Name = session.Name;
+                client.DeleteSession(request);
+                Assert.AreEqual(1, invoker.channelRefs.Count);
+                Assert.AreEqual(0, invoker.channelRefs[0].AffinityRef);
+                Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
+            }
+
+            {
+                ListSessionsRequest request = new ListSessionsRequest();
+                request.Database = DATABASE;
+                ListSessionsResponse response = client.ListSessions(request);
+                Assert.IsNotNull(response);
+                Assert.IsNotNull(response.Sessions);
+                Assert.IsFalse(response.Sessions.Any(item => item.Name == session.Name));
+                Assert.AreEqual(1, invoker.channelRefs.Count);
+                Assert.AreEqual(0, invoker.channelRefs[0].AffinityRef);
+                Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
+            }
+
         }
     }
 }

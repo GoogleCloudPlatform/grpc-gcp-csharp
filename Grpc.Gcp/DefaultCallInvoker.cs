@@ -73,8 +73,8 @@ namespace Grpc.Gcp
         private readonly ApiConfig config;
         private readonly IDictionary<string, AffinityConfig> affinityByMethod;
         private Object thisLock = new Object();
-        private IDictionary<string, ChannelRef> channelRefByAffinityKey = new Dictionary<string, ChannelRef>();
-        private IList<ChannelRef> channelRefs = new List<ChannelRef>();
+        internal IDictionary<string, ChannelRef> channelRefByAffinityKey = new Dictionary<string, ChannelRef>();
+        internal IList<ChannelRef> channelRefs = new List<ChannelRef>();
         private readonly string target;
         private readonly ChannelCredentials credentials;
         private readonly IEnumerable<ChannelOption> options;
