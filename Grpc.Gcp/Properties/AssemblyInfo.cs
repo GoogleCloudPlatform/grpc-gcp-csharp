@@ -21,3 +21,6 @@ using System.Runtime.InteropServices;
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
 [assembly: Guid("c70f8080-a8f5-4d7d-b6f3-531b706ef0a9")]
+
+// Allows the Grpc.Gcp.IntegrationTest to access internal members for testing purpose.
+[assembly: InternalsVisibleTo("Grpc.Gcp.IntegrationTest")]
