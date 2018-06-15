@@ -70,8 +70,8 @@ namespace Grpc.Gcp
     {
         public static readonly string GRPC_GCP_CHANNEL_ARG_API_CONFIG = "grpc_gcp.api_config";
         private static readonly string CLIENT_CHANNEL_ID = "grpc_gcp.client_channel.id";
-        private readonly GrpcGcp.ApiConfig config;
-        private readonly IDictionary<string, GrpcGcp.AffinityConfig> affinityByMethod;
+        private readonly ApiConfig config;
+        private readonly IDictionary<string, AffinityConfig> affinityByMethod;
         private Object thisLock = new Object();
         private IDictionary<string, ChannelRef> channelRefByAffinityKey = new Dictionary<string, ChannelRef>();
         private IList<ChannelRef> channelRefs = new List<ChannelRef>();
@@ -91,7 +91,7 @@ namespace Grpc.Gcp
                 ChannelOption option = options.FirstOrDefault(opt => opt.Name == GRPC_GCP_CHANNEL_ARG_API_CONFIG);
                 if (option != null)
                 {
-                    config = GrpcGcp.ApiConfig.Parser.ParseFrom(new MemoryStream(Encoding.Default.GetBytes(option.StringValue)));
+                    config = ApiConfig.Parser.ParseFrom(new MemoryStream(Encoding.Default.GetBytes(option.StringValue)));
                     affinityByMethod = InitAffinityByMethodIndex(config);
                 }
                 this.options = options.Where(o => o.Name != GRPC_GCP_CHANNEL_ARG_API_CONFIG).AsEnumerable<ChannelOption>();
@@ -104,12 +104,12 @@ namespace Grpc.Gcp
             this(string.Format("{0}:{1}", host, port), credentials, options)
         { }
 
-        private IDictionary<string, GrpcGcp.AffinityConfig> InitAffinityByMethodIndex(GrpcGcp.ApiConfig config)
+        private IDictionary<string, AffinityConfig> InitAffinityByMethodIndex(ApiConfig config)
         {
-            IDictionary<string, GrpcGcp.AffinityConfig> index = new Dictionary<string, GrpcGcp.AffinityConfig>();
+            IDictionary<string, AffinityConfig> index = new Dictionary<string, AffinityConfig>();
             if (config != null)
             {
-                foreach (GrpcGcp.MethodConfig method in config.Method)
+                foreach (MethodConfig method in config.Method)
                 {
                     // TODO(fengli): supports wildcard in method selector.
                     foreach (string name in method.Name)
@@ -248,11 +248,11 @@ namespace Grpc.Gcp
             BlockingUnaryCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string host, CallOptions options, TRequest request)
         {
             string affinityKey = null;
-            GrpcGcp.AffinityConfig affinity;
+            AffinityConfig affinity;
             if (affinityByMethod.TryGetValue(method.FullName, out affinity))
             {
-                if (affinity.Command == GrpcGcp.AffinityConfig.Types.Command.Bound
-                    || affinity.Command == GrpcGcp.AffinityConfig.Types.Command.Unbind)
+                if (affinity.Command == AffinityConfig.Types.Command.Bound
+                    || affinity.Command == AffinityConfig.Types.Command.Unbind)
                 {
                     affinityKey = GetAffinityKeyFromProto(affinity.AffinityKey, (IMessage)request);
                 }
@@ -265,11 +265,11 @@ namespace Grpc.Gcp
             channelRef.ActiveStreamRefDecr();
             if (affinity != null)
             {
-                if (affinity.Command == GrpcGcp.AffinityConfig.Types.Command.Bind)
+                if (affinity.Command == AffinityConfig.Types.Command.Bind)
                 {
                     Bind(channelRef, GetAffinityKeyFromProto(affinity.AffinityKey, (IMessage)response));
                 }
-                else if (affinity.Command == GrpcGcp.AffinityConfig.Types.Command.Unbind)
+                else if (affinity.Command == AffinityConfig.Types.Command.Unbind)
                 {
                     Unbind(affinityKey);
                 }

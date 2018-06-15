@@ -14,7 +14,7 @@
 
 syntax = "proto3";
 
-package grpc_gcp;
+package grpc.gcp;
 
 message ApiConfig {
   // The channel pool configurations.
