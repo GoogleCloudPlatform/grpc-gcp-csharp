@@ -28,6 +28,7 @@ namespace Grpc.Gcp.IntegrationTest
         [TestInitialize]
         public void SetUp()
         {
+            Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", "C:\\Users\\weiranf\\keys\\grpc-gcp-7ed990546b68.json");
             InitApiConfig();
             InitClient();
         }

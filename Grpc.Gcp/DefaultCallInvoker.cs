@@ -220,6 +220,39 @@ namespace Grpc.Gcp
             }
         }
 
+        private Tuple<ChannelRef, string> PreProcess<TRequest>(AffinityConfig affinityConfig, TRequest request)
+        {
+            string boundKey = null;
+            if (affinityConfig != null)
+            {
+                if (affinityConfig.Command == AffinityConfig.Types.Command.Bound
+                    || affinityConfig.Command == AffinityConfig.Types.Command.Unbind)
+                {
+                    boundKey = GetAffinityKeyFromProto(affinityConfig.AffinityKey, (IMessage)request);
+                }
+            }
+            ChannelRef channelRef = GetChannelRef(boundKey);
+            channelRef.ActiveStreamRefIncr();
+            return new Tuple<ChannelRef, string>(channelRef, boundKey);
+        }
+
+        private void PostProcess<TResponse>(AffinityConfig affinityConfig, ChannelRef channelRef, string boundKey, TResponse response)
+        {
+            channelRef.ActiveStreamRefDecr();
+            if (affinityConfig != null)
+            {
+                if (affinityConfig.Command == AffinityConfig.Types.Command.Bind)
+                {
+                    Bind(channelRef, GetAffinityKeyFromProto(affinityConfig.AffinityKey, (IMessage)response));
+                }
+                else if (affinityConfig.Command == AffinityConfig.Types.Command.Unbind)
+                {
+                    Unbind(boundKey);
+                }
+            }
+            
+        }
+
         public override AsyncClientStreamingCall<TRequest, TResponse>
             AsyncClientStreamingCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string host, CallOptions options)
         {
@@ -247,33 +280,17 @@ namespace Grpc.Gcp
         public override TResponse
             BlockingUnaryCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string host, CallOptions options, TRequest request)
         {
-            string affinityKey = null;
-            AffinityConfig affinity;
-            if (affinityByMethod.TryGetValue(method.FullName, out affinity))
-            {
-                if (affinity.Command == AffinityConfig.Types.Command.Bound
-                    || affinity.Command == AffinityConfig.Types.Command.Unbind)
-                {
-                    affinityKey = GetAffinityKeyFromProto(affinity.AffinityKey, (IMessage)request);
-                }
-            }
-            ChannelRef channelRef = GetChannelRef(affinityKey);
-            channelRef.ActiveStreamRefIncr();
+            AffinityConfig affinityConfig;
+            affinityByMethod.TryGetValue(method.FullName, out affinityConfig);
+            Tuple<ChannelRef, string> tupleResult = PreProcess(affinityConfig, request);
+            ChannelRef channelRef = tupleResult.Item1;
+            string boundKey = tupleResult.Item2;
+
             CallInvocationDetails<TRequest, TResponse> call = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel,
                 method, host, options);
             TResponse response = Calls.BlockingUnaryCall<TRequest, TResponse>(call, request);
-            channelRef.ActiveStreamRefDecr();
-            if (affinity != null)
-            {
-                if (affinity.Command == AffinityConfig.Types.Command.Bind)
-                {
-                    Bind(channelRef, GetAffinityKeyFromProto(affinity.AffinityKey, (IMessage)response));
-                }
-                else if (affinity.Command == AffinityConfig.Types.Command.Unbind)
-                {
-                    Unbind(affinityKey);
-                }
-            }
+
+            PostProcess(affinityConfig, channelRef, boundKey, response);
             return response;
         }
     }
