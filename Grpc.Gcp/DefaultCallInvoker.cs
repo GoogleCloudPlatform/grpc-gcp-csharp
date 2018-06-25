@@ -274,7 +274,22 @@ namespace Grpc.Gcp
         public override AsyncUnaryCall<TResponse>
             AsyncUnaryCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string host, CallOptions options, TRequest request)
         {
-            throw new System.NotImplementedException();
+            AffinityConfig affinityConfig;
+            affinityByMethod.TryGetValue(method.FullName, out affinityConfig);
+
+            Tuple<ChannelRef, string> tupleResult = PreProcess(affinityConfig, request);
+            ChannelRef channelRef = tupleResult.Item1;
+            string boundKey = tupleResult.Item2;
+
+            CallInvocationDetails<TRequest, TResponse> call = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
+            AsyncUnaryCall<TResponse> originalAsyncUnaryCall = Calls.AsyncUnaryCall(call, request);
+            return originalAsyncUnaryCall;
+            // TODO: add callback for postprocess.
+
+            //var asyncCall = new AsyncCall<TRequest, TResponse>(call);
+            //var asyncResult = asyncCall.UnaryCallAsync(req);
+            //return new AsyncUnaryCall<TResponse>(originalAsyncUnaryCall.ResponseAsync.ContinueWith(callback),
+                                                 //originalAsyncUnaryCall.ResponseHeadersAsync, originalAsyncUnaryCall.getStatusFunc, originalAsyncUnaryCall.GetTrailers, originalAsyncUnaryCall.Cancel);
         }
 
         public override TResponse
@@ -282,6 +297,7 @@ namespace Grpc.Gcp
         {
             AffinityConfig affinityConfig;
             affinityByMethod.TryGetValue(method.FullName, out affinityConfig);
+
             Tuple<ChannelRef, string> tupleResult = PreProcess(affinityConfig, request);
             ChannelRef channelRef = tupleResult.Item1;
             string boundKey = tupleResult.Item2;

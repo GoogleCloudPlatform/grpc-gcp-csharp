@@ -65,6 +65,9 @@
     <Reference Include="Google.Apis.PlatformServices, Version=1.34.0.0, Culture=neutral, PublicKeyToken=4b01fa6e34db77ab, processorArchitecture=MSIL">
       <HintPath>..\packages\Google.Apis.1.34.0\lib\net45\Google.Apis.PlatformServices.dll</HintPath>
     </Reference>
+    <Reference Include="Google.Cloud.Bigtable.V2, Version=0.2.0.0, Culture=neutral, PublicKeyToken=185c282632e132a0, processorArchitecture=MSIL">
+      <HintPath>..\packages\Google.Cloud.Bigtable.V2.0.2.0\lib\net45\Google.Cloud.Bigtable.V2.dll</HintPath>
+    </Reference>
     <Reference Include="Google.Cloud.Spanner.V1, Version=1.0.0.0, Culture=neutral, PublicKeyToken=185c282632e132a0, processorArchitecture=MSIL">
       <HintPath>..\packages\Google.Cloud.Spanner.V1.1.0.0\lib\net45\Google.Cloud.Spanner.V1.dll</HintPath>
     </Reference>
@@ -111,6 +114,7 @@
   <ItemGroup>
     <Compile Include="SpannerTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="BigtableTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
