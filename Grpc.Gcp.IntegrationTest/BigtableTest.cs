@@ -17,6 +17,10 @@ namespace Grpc.Gcp.IntegrationTest
         private const string TARGET = "bigtable.googleapis.com";
         private const string TABLE = "projects/grpc-gcp/instances/test-instance/tables/test-table";
         private const string OAUTH_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
+        private const string ROW_KEY = "test-row";
+        private const string VALUE = "test-value";
+        private const string COLUMN_FAMILY = "test-cf";
+        private const string COLUMN_QUALIFIER = "test-cq";
         private const Int32 DEFAULT_MAX_CHANNELS_PER_TARGET = 10;
         private ApiConfig config = new ApiConfig();
         private DefaultCallInvoker invoker;
@@ -36,7 +40,7 @@ namespace Grpc.Gcp.IntegrationTest
             MemoryStream stream = new MemoryStream();
             config.WriteTo(stream);
             IList<ChannelOption> options = new List<ChannelOption>() {
-                new ChannelOption(DefaultCallInvoker.GRPC_GCP_CHANNEL_ARG_API_CONFIG, Encoding.Default.GetString(stream.ToArray())) };
+                new ChannelOption(DefaultCallInvoker.API_CONFIG_CHANNEL_ARG, Encoding.Default.GetString(stream.ToArray())) };
             invoker = new DefaultCallInvoker(TARGET, credential.ToChannelCredentials(), options);
             client = new Bigtable.BigtableClient(invoker);
         }
@@ -46,7 +50,6 @@ namespace Grpc.Gcp.IntegrationTest
             config.ChannelPool = new ChannelPoolConfig();
             config.ChannelPool.MaxConcurrentStreamsLowWatermark = 1;
             config.ChannelPool.MaxSize = 10;
-            //AddMethod(config, "/google.bigtable.v2.Bigtable/MutateRow", AffinityConfig.Types.Command.Bind, "name");
         }
 
         private void AddMethod(ApiConfig config, string name, AffinityConfig.Types.Command command, string affinityKey)
@@ -60,16 +63,16 @@ namespace Grpc.Gcp.IntegrationTest
         }
 
         [TestMethod]
-        public void TestMutateRow()
+        public void MutateRow()
         {
             MutateRowRequest mutateRowRequest = new MutateRowRequest();
             mutateRowRequest.TableName = TABLE;
-            mutateRowRequest.RowKey = ByteString.CopyFromUtf8("r1");
+            mutateRowRequest.RowKey = ByteString.CopyFromUtf8(ROW_KEY);
             Mutation.Types.SetCell setSell = new Mutation.Types.SetCell();
 
-            setSell.FamilyName = "cf1";
-            setSell.ColumnQualifier = ByteString.CopyFromUtf8("c1");
-            setSell.Value = ByteString.CopyFromUtf8("test-value");
+            setSell.FamilyName = COLUMN_FAMILY;
+            setSell.ColumnQualifier = ByteString.CopyFromUtf8(COLUMN_QUALIFIER);
+            setSell.Value = ByteString.CopyFromUtf8(VALUE);
 
             Mutation mutation = new Mutation();
             mutation.SetCell = setSell;

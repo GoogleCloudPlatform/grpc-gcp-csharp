@@ -39,7 +39,7 @@ namespace Grpc.Gcp.IntegrationTest
             MemoryStream stream = new MemoryStream();
             config.WriteTo(stream);
             IList<ChannelOption> options = new List<ChannelOption>() {
-                new ChannelOption(DefaultCallInvoker.GRPC_GCP_CHANNEL_ARG_API_CONFIG, Encoding.Default.GetString(stream.ToArray())) };
+                new ChannelOption(DefaultCallInvoker.API_CONFIG_CHANNEL_ARG, Encoding.Default.GetString(stream.ToArray())) };
             invoker = new DefaultCallInvoker(TARGET, credential.ToChannelCredentials(), options);
             client = new Spanner.SpannerClient(invoker);
         }
@@ -175,6 +175,40 @@ namespace Grpc.Gcp.IntegrationTest
                 Assert.AreEqual(0, invoker.channelRefs[0].AffinityRef);
                 Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
             }
+        }
+
+        [TestMethod]
+        public void BoundUnbindInvalidAffinityKey()
+        {
+            GetSessionRequest getSessionRequest = new GetSessionRequest();
+            getSessionRequest.Name = "random_name";
+            Assert.ThrowsException<Grpc.Core.RpcException>(() => client.GetSession(getSessionRequest));
+
+            DeleteSessionRequest deleteSessionRequest = new DeleteSessionRequest();
+            deleteSessionRequest.Name = "random_name";
+            
+            Assert.ThrowsException<Grpc.Core.RpcException>(() => client.DeleteSession(deleteSessionRequest));
+        }
+
+        [TestMethod]
+        public void BoundAfterUnbind()
+        {
+            CreateSessionRequest request = new CreateSessionRequest();
+            request.Database = DATABASE;
+            Session session = client.CreateSession(request);
+
+            Assert.AreEqual(1, invoker.channelRefByAffinityKey.Count);
+
+            DeleteSessionRequest deleteSessionRequest = new DeleteSessionRequest();
+            deleteSessionRequest.Name = session.Name;
+            client.DeleteSession(deleteSessionRequest);
+
+            Assert.AreEqual(0, invoker.channelRefByAffinityKey.Count);
+
+            GetSessionRequest getSessionRequest = new GetSessionRequest();
+            getSessionRequest.Name = session.Name;
+            Assert.ThrowsException<Grpc.Core.RpcException>(() => client.GetSession(getSessionRequest));
+
         }
     }
 }

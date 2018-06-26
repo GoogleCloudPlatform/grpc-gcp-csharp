@@ -68,7 +68,7 @@ namespace Grpc.Gcp
 
     public class DefaultCallInvoker : CallInvoker
     {
-        public static readonly string GRPC_GCP_CHANNEL_ARG_API_CONFIG = "grpc_gcp.api_config";
+        public static readonly string API_CONFIG_CHANNEL_ARG = "grpc_gcp.api_config";
         private static readonly string CLIENT_CHANNEL_ID = "grpc_gcp.client_channel.id";
         private readonly ApiConfig config;
         private readonly IDictionary<string, AffinityConfig> affinityByMethod;
@@ -88,13 +88,13 @@ namespace Grpc.Gcp
 
             if (options != null)
             {
-                ChannelOption option = options.FirstOrDefault(opt => opt.Name == GRPC_GCP_CHANNEL_ARG_API_CONFIG);
+                ChannelOption option = options.FirstOrDefault(opt => opt.Name == API_CONFIG_CHANNEL_ARG);
                 if (option != null)
                 {
                     config = ApiConfig.Parser.ParseFrom(new MemoryStream(Encoding.Default.GetBytes(option.StringValue)));
                     affinityByMethod = InitAffinityByMethodIndex(config);
                 }
-                this.options = options.Where(o => o.Name != GRPC_GCP_CHANNEL_ARG_API_CONFIG).AsEnumerable<ChannelOption>();
+                this.options = options.Where(o => o.Name != API_CONFIG_CHANNEL_ARG).AsEnumerable<ChannelOption>();
             }
         }
 
@@ -135,7 +135,6 @@ namespace Grpc.Gcp
                         return channelRef;
                     }
                     // TODO(fengli): Affinity key not found, log an error.
-                    return GetChannelRef();
                 }
 
                 // TODO(fengli): Creates new gRPC channels on demand, depends on the load reporting.
@@ -215,6 +214,7 @@ namespace Grpc.Gcp
                 if (channelRefByAffinityKey.TryGetValue(affinityKey, out channelRef))
                 {
                     channelRef.AffinityRefDecr();
+                    channelRefByAffinityKey.Remove(affinityKey);
                 }
                 return channelRef;
             }
