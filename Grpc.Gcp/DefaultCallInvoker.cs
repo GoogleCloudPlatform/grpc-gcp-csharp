@@ -5,6 +5,7 @@ using System.Linq;
 using Google.Protobuf;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Grpc.Gcp
 {
@@ -283,7 +284,11 @@ namespace Grpc.Gcp
 
             CallInvocationDetails<TRequest, TResponse> call = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
             AsyncUnaryCall<TResponse> originalAsyncUnaryCall = Calls.AsyncUnaryCall(call, request);
-            return originalAsyncUnaryCall;
+
+            Action<TResponse> action =
+                (resp) => PostProcess(affinityConfig, channelRef, boundKey, resp);
+
+            return new GcpAsyncUnaryCall<TResponse>(originalAsyncUnaryCall, action);
             // TODO: add callback for postprocess.
 
             //var asyncCall = new AsyncCall<TRequest, TResponse>(call);
