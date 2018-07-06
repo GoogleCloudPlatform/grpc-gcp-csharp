@@ -57,17 +57,13 @@ namespace Grpc.Gcp
             this.disposeAction = disposeAction;
         }
 
-        public GcpAsyncUnaryCall(AsyncUnaryCall<TResponse> originalCall,
-                              Action<TResponse> callback)
-        {
-            this.originalCall = originalCall;
-            this.responseAsync = this.originalCall.ResponseAsync.ContinueWith(antecendent => callback(antecendent.Result));
-            this.responseHeadersAsync = this.originalCall.ResponseHeadersAsync;
-        }
-
-        public GcpAsyncUnaryCall(AsyncUnaryCall<TResponse> originalAsyncUnaryCall, object v)
-        {
-        }
+        //public GcpAsyncUnaryCall(AsyncUnaryCall<TResponse> originalCall,
+        //                      Action<TResponse> callback)
+        //{
+        //    this.originalCall = originalCall;
+        //    this.responseAsync = this.originalCall.ResponseAsync.ContinueWith(antecendent => callback(antecendent.Result));
+        //    this.responseHeadersAsync = this.originalCall.ResponseHeadersAsync;
+        //}
 
         /// <summary>
         /// Asynchronous call result.

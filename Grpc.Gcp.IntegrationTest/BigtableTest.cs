@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using Google.Protobuf;
 using System.Text;
 using Grpc.Auth;
+using System.Threading;
 
 namespace Grpc.Gcp.IntegrationTest
 {
@@ -81,5 +82,48 @@ namespace Grpc.Gcp.IntegrationTest
             client.MutateRow(mutateRowRequest);
             Assert.AreEqual(1, invoker.channelRefs.Count);
         }
+
+        [TestMethod]
+        public void MutateRowAsync()
+        {
+            MutateRowRequest mutateRowRequest = new MutateRowRequest
+            {
+                TableName = TABLE,
+                RowKey = ByteString.CopyFromUtf8(ROW_KEY),
+            };
+
+            Mutation mutation = new Mutation
+            {
+                SetCell = new Mutation.Types.SetCell
+                {
+                    FamilyName = COLUMN_FAMILY,
+                    ColumnQualifier = ByteString.CopyFromUtf8(COLUMN_QUALIFIER),
+                    Value = ByteString.CopyFromUtf8(VALUE),
+                }
+            };
+
+            mutateRowRequest.Mutations.Add(mutation);
+
+            AsyncUnaryCall<MutateRowResponse> call = client.MutateRowAsync(mutateRowRequest);
+            Assert.AreEqual(1, invoker.channelRefs.Count);
+            Assert.AreEqual(1, invoker.channelRefs[0].ActiveStreamRef);
+            MutateRowResponse response = call.ResponseAsync.Result;
+            Thread.Sleep(3000);
+            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
+        }
+
+        //[TestMethod]
+        //public void ReadRows()
+        //{
+        //    ReadRowsRequest readRowsRequest = new ReadRowsRequest
+        //    {
+        //        TableName = TABLE,
+        //        Rows = new RowSet
+        //        {
+        //            RowKeys = { ByteString.CopyFromUtf8(ROW_KEY) }
+        //        }
+        //    };
+        //    client.ReadRows(readRowsRequest);
+        //}
     }
 }

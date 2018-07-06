@@ -51,6 +51,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="GcpAsyncUnaryCall.cs" />
     <Compile Include="DefaultCallInvoker.cs" />
     <Compile Include="GrpcGcp.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
