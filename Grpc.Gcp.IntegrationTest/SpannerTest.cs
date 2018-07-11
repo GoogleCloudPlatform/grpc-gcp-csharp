@@ -178,6 +178,48 @@ namespace Grpc.Gcp.IntegrationTest
         }
 
         [TestMethod]
+        public void ExecuteSqlAsync()
+        {
+            Session session;
+            {
+                CreateSessionRequest request = new CreateSessionRequest();
+                request.Database = DATABASE;
+                session = client.CreateSession(request);
+                Assert.IsNotNull(session);
+                Assert.AreEqual(1, invoker.channelRefs.Count);
+                Assert.AreEqual(1, invoker.channelRefs[0].AffinityRef);
+                Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
+            }
+            {
+                ExecuteSqlRequest request = new ExecuteSqlRequest();
+                request.Session = session.Name;
+                request.Sql = string.Format("select id, data from {0}", TABLE);
+                AsyncUnaryCall<ResultSet> call = client.ExecuteSqlAsync(request);
+                Assert.AreEqual(1, invoker.channelRefs.Count);
+                Assert.AreEqual(1, invoker.channelRefs[0].AffinityRef);
+                Assert.AreEqual(1, invoker.channelRefs[0].ActiveStreamRef);
+
+                ResultSet resultSet = call.ResponseAsync.Result;
+
+                Assert.AreEqual(1, invoker.channelRefs.Count);
+                Assert.AreEqual(1, invoker.channelRefs[0].AffinityRef);
+                Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
+
+                Assert.IsNotNull(resultSet);
+                Assert.AreEqual(1, resultSet.Rows.Count);
+                Assert.AreEqual(COLUMN_ID_PAYLOAD, resultSet.Rows[0].Values[0].StringValue);
+            }
+            {
+                DeleteSessionRequest request = new DeleteSessionRequest();
+                request.Name = session.Name;
+                client.DeleteSession(request);
+                Assert.AreEqual(1, invoker.channelRefs.Count);
+                Assert.AreEqual(0, invoker.channelRefs[0].AffinityRef);
+                Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
+            }
+        }
+
+        [TestMethod]
         public void BoundUnbindInvalidAffinityKey()
         {
             GetSessionRequest getSessionRequest = new GetSessionRequest();
@@ -210,5 +252,6 @@ namespace Grpc.Gcp.IntegrationTest
             Assert.ThrowsException<Grpc.Core.RpcException>(() => client.GetSession(getSessionRequest));
 
         }
+
     }
 }

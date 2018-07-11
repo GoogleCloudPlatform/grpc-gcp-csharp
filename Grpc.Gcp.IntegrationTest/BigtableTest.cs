@@ -108,22 +108,8 @@ namespace Grpc.Gcp.IntegrationTest
             Assert.AreEqual(1, invoker.channelRefs.Count);
             Assert.AreEqual(1, invoker.channelRefs[0].ActiveStreamRef);
             MutateRowResponse response = call.ResponseAsync.Result;
-            Thread.Sleep(3000);
             Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
         }
 
-        //[TestMethod]
-        //public void ReadRows()
-        //{
-        //    ReadRowsRequest readRowsRequest = new ReadRowsRequest
-        //    {
-        //        TableName = TABLE,
-        //        Rows = new RowSet
-        //        {
-        //            RowKeys = { ByteString.CopyFromUtf8(ROW_KEY) }
-        //        }
-        //    };
-        //    client.ReadRows(readRowsRequest);
-        //}
     }
 }

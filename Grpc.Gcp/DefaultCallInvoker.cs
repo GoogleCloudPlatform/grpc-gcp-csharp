@@ -285,18 +285,20 @@ namespace Grpc.Gcp
             CallInvocationDetails<TRequest, TResponse> call = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
             AsyncUnaryCall<TResponse> originalAsyncUnaryCall = Calls.AsyncUnaryCall(call, request);
 
-            Action<TResponse> callback =
-                (resp) => PostProcess(affinityConfig, channelRef, boundKey, resp);
+            Func<TResponse, TResponse> callback = (resp) =>
+            {
+                PostProcess(affinityConfig, channelRef, boundKey, resp);
+                return resp;
+            };
 
-            originalAsyncUnaryCall.ResponseAsync.ContinueWith(antecendent => callback(antecendent.Result));
+            Task<TResponse> responseAsync = originalAsyncUnaryCall.ResponseAsync.ContinueWith(antecendent => callback(antecendent.Result));
 
-            return originalAsyncUnaryCall;
-            // TODO: add callback for postprocess.
+            return new AsyncUnaryCall<TResponse>(responseAsync,
+                originalAsyncUnaryCall.ResponseHeadersAsync,
+                () => originalAsyncUnaryCall.GetStatus(),
+                () => originalAsyncUnaryCall.GetTrailers(),
+                () => originalAsyncUnaryCall.Dispose());
 
-            //var asyncCall = new AsyncCall<TRequest, TResponse>(call);
-            //var asyncResult = asyncCall.UnaryCallAsync(req);
-            //return new AsyncUnaryCall<TResponse>(originalAsyncUnaryCall.ResponseAsync.ContinueWith(callback),
-                                                 //originalAsyncUnaryCall.ResponseHeadersAsync, originalAsyncUnaryCall.getStatusFunc, originalAsyncUnaryCall.GetTrailers, originalAsyncUnaryCall.Cancel);
         }
 
         public override TResponse
