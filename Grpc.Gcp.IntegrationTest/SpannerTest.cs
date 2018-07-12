@@ -29,26 +29,24 @@ namespace Grpc.Gcp.IntegrationTest
         public void SetUp()
         {
             Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", "C:\\Users\\weiranf\\keys\\grpc-gcp-7ed990546b68.json");
-            InitApiConfig();
+            InitApiConfig(1, 10);
             InitClient();
         }
 
         private void InitClient()
         {
             GoogleCredential credential = GoogleCredential.GetApplicationDefault();
-            MemoryStream stream = new MemoryStream();
-            config.WriteTo(stream);
             IList<ChannelOption> options = new List<ChannelOption>() {
-                new ChannelOption(DefaultCallInvoker.API_CONFIG_CHANNEL_ARG, Encoding.Default.GetString(stream.ToArray())) };
+                new ChannelOption(DefaultCallInvoker.API_CONFIG_CHANNEL_ARG, config.ToString()) };
             invoker = new DefaultCallInvoker(TARGET, credential.ToChannelCredentials(), options);
             client = new Spanner.SpannerClient(invoker);
         }
 
-        private void InitApiConfig()
+        private void InitApiConfig(uint maxConcurrentStreams, uint maxSize)
         {
             config.ChannelPool = new ChannelPoolConfig();
-            config.ChannelPool.MaxConcurrentStreamsLowWatermark = 1;
-            config.ChannelPool.MaxSize = 10;
+            config.ChannelPool.MaxConcurrentStreamsLowWatermark = maxConcurrentStreams;
+            config.ChannelPool.MaxSize = maxSize;
             AddMethod(config, "/google.spanner.v1.Spanner/CreateSession", AffinityConfig.Types.Command.Bind, "name");
             AddMethod(config, "/google.spanner.v1.Spanner/GetSession", AffinityConfig.Types.Command.Bound, "name");
             AddMethod(config, "/google.spanner.v1.Spanner/DeleteSession", AffinityConfig.Types.Command.Unbind, "name");
@@ -74,23 +72,52 @@ namespace Grpc.Gcp.IntegrationTest
         }
 
         [TestMethod]
+        public void CreateSessionWithNewChannel()
+        {
+            IList<AsyncUnaryCall<Session>> calls = new List<AsyncUnaryCall<Session>>();
+
+            for (int i = 0; i < DEFAULT_MAX_CHANNELS_PER_TARGET; i++)
+            {
+                AsyncUnaryCall<Session> call = client.CreateSessionAsync(
+                    new CreateSessionRequest { Database = DATABASE });
+                calls.Add(call);
+                //Assert.AreEqual(i + 1, invoker.channelRefs.Count);
+            }
+            for (int i = 0; i < calls.Count; i++)
+            {
+                client.DeleteSession(
+                    new DeleteSessionRequest { Name = calls[i].ResponseAsync.Result.Name });
+            }
+
+            calls.Clear();
+
+            for (int i = 0; i < DEFAULT_MAX_CHANNELS_PER_TARGET; i++)
+            {
+                AsyncUnaryCall<Session> call = client.CreateSessionAsync(
+                    new CreateSessionRequest { Database = DATABASE });
+                calls.Add(call);
+                Assert.AreEqual(DEFAULT_MAX_CHANNELS_PER_TARGET, invoker.channelRefs.Count);
+            }
+            for (int i = 0; i < calls.Count; i++)
+            {
+                client.DeleteSession(
+                    new DeleteSessionRequest { Name = calls[i].ResponseAsync.Result.Name });
+            }
+        }
+
+        [TestMethod]
         public void CreateSessionWithReusedChannel()
         {
             for (int i = 0; i < DEFAULT_MAX_CHANNELS_PER_TARGET * 2; i++)
             {
                 Session session;
-                {
-                    CreateSessionRequest request = new CreateSessionRequest();
-                    request.Database = DATABASE;
-                    session = client.CreateSession(request);
-                    Assert.IsNotNull(session);
-                    Assert.AreEqual(1, invoker.channelRefs.Count);
-                }
-                {
-                    DeleteSessionRequest request = new DeleteSessionRequest();
-                    request.Name = session.Name;
-                    client.DeleteSession(request);
-                }
+                session = client.CreateSession(
+                    new CreateSessionRequest { Database = DATABASE });
+
+                Assert.IsNotNull(session);
+                Assert.AreEqual(1, invoker.channelRefs.Count);
+
+                client.DeleteSession(new DeleteSessionRequest { Name = session.Name });
             }
         }
 
@@ -181,42 +208,39 @@ namespace Grpc.Gcp.IntegrationTest
         public void ExecuteSqlAsync()
         {
             Session session;
-            {
-                CreateSessionRequest request = new CreateSessionRequest();
-                request.Database = DATABASE;
-                session = client.CreateSession(request);
-                Assert.IsNotNull(session);
-                Assert.AreEqual(1, invoker.channelRefs.Count);
-                Assert.AreEqual(1, invoker.channelRefs[0].AffinityRef);
-                Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
-            }
-            {
-                ExecuteSqlRequest request = new ExecuteSqlRequest();
-                request.Session = session.Name;
-                request.Sql = string.Format("select id, data from {0}", TABLE);
-                AsyncUnaryCall<ResultSet> call = client.ExecuteSqlAsync(request);
-                Assert.AreEqual(1, invoker.channelRefs.Count);
-                Assert.AreEqual(1, invoker.channelRefs[0].AffinityRef);
-                Assert.AreEqual(1, invoker.channelRefs[0].ActiveStreamRef);
 
-                ResultSet resultSet = call.ResponseAsync.Result;
+            session = client.CreateSession(
+                new CreateSessionRequest { Database = DATABASE });
+            Assert.IsNotNull(session);
+            Assert.AreEqual(1, invoker.channelRefs.Count);
+            Assert.AreEqual(1, invoker.channelRefs[0].AffinityRef);
+            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
 
-                Assert.AreEqual(1, invoker.channelRefs.Count);
-                Assert.AreEqual(1, invoker.channelRefs[0].AffinityRef);
-                Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
+            AsyncUnaryCall<ResultSet> call = client.ExecuteSqlAsync(
+                new ExecuteSqlRequest
+                {
+                    Session = session.Name,
+                    Sql = string.Format("select id, data from {0}", TABLE)
+                });
+            Assert.AreEqual(1, invoker.channelRefs.Count);
+            Assert.AreEqual(1, invoker.channelRefs[0].AffinityRef);
+            Assert.AreEqual(1, invoker.channelRefs[0].ActiveStreamRef);
 
-                Assert.IsNotNull(resultSet);
-                Assert.AreEqual(1, resultSet.Rows.Count);
-                Assert.AreEqual(COLUMN_ID_PAYLOAD, resultSet.Rows[0].Values[0].StringValue);
-            }
-            {
-                DeleteSessionRequest request = new DeleteSessionRequest();
-                request.Name = session.Name;
-                client.DeleteSession(request);
-                Assert.AreEqual(1, invoker.channelRefs.Count);
-                Assert.AreEqual(0, invoker.channelRefs[0].AffinityRef);
-                Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
-            }
+            ResultSet resultSet = call.ResponseAsync.Result;
+
+            Assert.AreEqual(1, invoker.channelRefs.Count);
+            Assert.AreEqual(1, invoker.channelRefs[0].AffinityRef);
+            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
+
+            Assert.IsNotNull(resultSet);
+            Assert.AreEqual(1, resultSet.Rows.Count);
+            Assert.AreEqual(COLUMN_ID_PAYLOAD, resultSet.Rows[0].Values[0].StringValue);
+
+            client.DeleteSession(new DeleteSessionRequest { Name = session.Name });
+            Assert.AreEqual(1, invoker.channelRefs.Count);
+            Assert.AreEqual(0, invoker.channelRefs[0].AffinityRef);
+            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
+
         }
 
         [TestMethod]

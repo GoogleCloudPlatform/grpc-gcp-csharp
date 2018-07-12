@@ -66,17 +66,22 @@ namespace Grpc.Gcp.IntegrationTest
         [TestMethod]
         public void MutateRow()
         {
-            MutateRowRequest mutateRowRequest = new MutateRowRequest();
-            mutateRowRequest.TableName = TABLE;
-            mutateRowRequest.RowKey = ByteString.CopyFromUtf8(ROW_KEY);
-            Mutation.Types.SetCell setSell = new Mutation.Types.SetCell();
+            MutateRowRequest mutateRowRequest = new MutateRowRequest
+            {
+                TableName = TABLE,
+                RowKey = ByteString.CopyFromUtf8(ROW_KEY)
+            };
 
-            setSell.FamilyName = COLUMN_FAMILY;
-            setSell.ColumnQualifier = ByteString.CopyFromUtf8(COLUMN_QUALIFIER);
-            setSell.Value = ByteString.CopyFromUtf8(VALUE);
+            Mutation mutation = new Mutation
+            {
+                SetCell = new Mutation.Types.SetCell
+                {
+                    FamilyName = COLUMN_FAMILY,
+                    ColumnQualifier = ByteString.CopyFromUtf8(COLUMN_QUALIFIER),
+                    Value = ByteString.CopyFromUtf8(VALUE),
+                }
+            };
 
-            Mutation mutation = new Mutation();
-            mutation.SetCell = setSell;
             mutateRowRequest.Mutations.Add(mutation);
 
             client.MutateRow(mutateRowRequest);

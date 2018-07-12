@@ -92,7 +92,7 @@ namespace Grpc.Gcp
                 ChannelOption option = options.FirstOrDefault(opt => opt.Name == API_CONFIG_CHANNEL_ARG);
                 if (option != null)
                 {
-                    config = ApiConfig.Parser.ParseFrom(new MemoryStream(Encoding.Default.GetBytes(option.StringValue)));
+                    config = ApiConfig.Parser.ParseJson(option.StringValue);
                     affinityByMethod = InitAffinityByMethodIndex(config);
                 }
                 this.options = options.Where(o => o.Name != API_CONFIG_CHANNEL_ARG).AsEnumerable<ChannelOption>();
@@ -143,7 +143,7 @@ namespace Grpc.Gcp
                     channelRefs.OrderBy(channelRef => channelRef.ActiveStreamRef);
                 foreach (ChannelRef channelRef in orderedChannelRefs)
                 {
-                    if (channelRef.ActiveStreamRef <= config.ChannelPool.MaxConcurrentStreamsLowWatermark)
+                    if (channelRef.ActiveStreamRef < config.ChannelPool.MaxConcurrentStreamsLowWatermark)
                     {
                         // If there's a free channel, use it.
                         return channelRef;
@@ -269,7 +269,19 @@ namespace Grpc.Gcp
         public override AsyncServerStreamingCall<TResponse>
             AsyncServerStreamingCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string host, CallOptions options, TRequest request)
         {
-            throw new System.NotImplementedException();
+            AffinityConfig affinityConfig;
+            affinityByMethod.TryGetValue(method.FullName, out affinityConfig);
+
+            Tuple<ChannelRef, string> tupleResult = PreProcess(affinityConfig, request);
+            ChannelRef channelRef = tupleResult.Item1;
+            string boundKey = tupleResult.Item2;
+
+            CallInvocationDetails<TRequest, TResponse> call =
+                new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
+            AsyncServerStreamingCall<TResponse> originalCall = Calls.AsyncServerStreamingCall(call, request);
+
+            // TODO(weiranfang): Add callback
+            return originalCall;
         }
 
         public override AsyncUnaryCall<TResponse>
@@ -282,7 +294,8 @@ namespace Grpc.Gcp
             ChannelRef channelRef = tupleResult.Item1;
             string boundKey = tupleResult.Item2;
 
-            CallInvocationDetails<TRequest, TResponse> call = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
+            CallInvocationDetails<TRequest, TResponse> call = 
+                new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
             AsyncUnaryCall<TResponse> originalAsyncUnaryCall = Calls.AsyncUnaryCall(call, request);
 
             Func<TResponse, TResponse> callback = (resp) =>
@@ -291,7 +304,8 @@ namespace Grpc.Gcp
                 return resp;
             };
 
-            Task<TResponse> responseAsync = originalAsyncUnaryCall.ResponseAsync.ContinueWith(antecendent => callback(antecendent.Result));
+            Task<TResponse> responseAsync = originalAsyncUnaryCall.ResponseAsync
+                .ContinueWith(antecendent => callback(antecendent.Result));
 
             return new AsyncUnaryCall<TResponse>(responseAsync,
                 originalAsyncUnaryCall.ResponseHeadersAsync,
@@ -311,12 +325,14 @@ namespace Grpc.Gcp
             ChannelRef channelRef = tupleResult.Item1;
             string boundKey = tupleResult.Item2;
 
-            CallInvocationDetails<TRequest, TResponse> call = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel,
-                method, host, options);
+            CallInvocationDetails<TRequest, TResponse> call =
+                new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
             TResponse response = Calls.BlockingUnaryCall<TRequest, TResponse>(call, request);
 
             PostProcess(affinityConfig, channelRef, boundKey, response);
             return response;
         }
+
+        // TODO(weiranfang): Expose method that shuts down all channels in the channel pool.
     }
 }
