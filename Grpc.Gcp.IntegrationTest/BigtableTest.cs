@@ -38,10 +38,8 @@ namespace Grpc.Gcp.IntegrationTest
         private void InitClient()
         {
             GoogleCredential credential = GoogleCredential.GetApplicationDefault();
-            MemoryStream stream = new MemoryStream();
-            config.WriteTo(stream);
             IList<ChannelOption> options = new List<ChannelOption>() {
-                new ChannelOption(DefaultCallInvoker.API_CONFIG_CHANNEL_ARG, Encoding.Default.GetString(stream.ToArray())) };
+                new ChannelOption(DefaultCallInvoker.API_CONFIG_CHANNEL_ARG, config.ToString()) };
             invoker = new DefaultCallInvoker(TARGET, credential.ToChannelCredentials(), options);
             client = new Bigtable.BigtableClient(invoker);
         }
@@ -113,6 +111,34 @@ namespace Grpc.Gcp.IntegrationTest
             Assert.AreEqual(1, invoker.channelRefs.Count);
             Assert.AreEqual(1, invoker.channelRefs[0].ActiveStreamRef);
             MutateRowResponse response = call.ResponseAsync.Result;
+            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
+        }
+
+        [TestMethod]
+        public void ReadRows()
+        {
+            ReadRowsRequest readRowsRequest = new ReadRowsRequest
+            {
+                TableName = TABLE,
+                Rows = new RowSet
+                {
+                    RowKeys = { ByteString.CopyFromUtf8(ROW_KEY) }
+                }
+            };
+            var streamingCall = client.ReadRows(readRowsRequest);
+            Assert.AreEqual(1, invoker.channelRefs.Count);
+            Assert.AreEqual(1, invoker.channelRefs[0].ActiveStreamRef);
+
+            CancellationTokenSource tokenSource = new CancellationTokenSource();
+            CancellationToken token = tokenSource.Token;
+            var responseStream = streamingCall.ResponseStream;
+            ReadRowsResponse firstResponse = null;
+            while (responseStream.MoveNext(token).Result)
+            {
+                if (firstResponse == null) firstResponse = responseStream.Current;
+            }
+            Assert.AreEqual("test-value", firstResponse.Chunks[0].Value.ToStringUtf8());
+            Assert.AreEqual(1, invoker.channelRefs.Count);
             Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
         }
 

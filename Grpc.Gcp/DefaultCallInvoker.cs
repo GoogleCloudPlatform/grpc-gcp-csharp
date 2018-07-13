@@ -6,6 +6,9 @@ using Google.Protobuf;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using Grpc.Core.Interceptors;
+using Grpc.Core.Utils;
+using System.Threading;
 
 namespace Grpc.Gcp
 {
@@ -104,6 +107,52 @@ namespace Grpc.Gcp
         public DefaultCallInvoker(string host, int port, ChannelCredentials credentials, IEnumerable<ChannelOption> options) :
             this(string.Format("{0}:{1}", host, port), credentials, options)
         { }
+
+        private class GcpClientResponseStream<TRequest, TResponse> : IAsyncStreamReader<TResponse>
+            where TRequest : class
+            where TResponse : class
+        {
+            bool callbackDone = false;
+            readonly IAsyncStreamReader<TResponse> originalStreamReader;
+            TResponse lastResponse;
+            Func<TResponse, TResponse> callback;
+
+            public GcpClientResponseStream(IAsyncStreamReader<TResponse> originalStreamReader, Func<TResponse, TResponse> callback)
+            {
+                this.originalStreamReader = originalStreamReader;
+                this.callback = callback;
+            }
+
+            public TResponse Current
+            {
+                get
+                {
+                    TResponse current = originalStreamReader.Current;
+                    // Record the last response.
+                    lastResponse = current;
+                    return current;
+                }
+            }
+
+            public async Task<bool> MoveNext(CancellationToken token)
+            {
+                bool result = await originalStreamReader.MoveNext(token);
+
+                // The last invokcation of originalStreamReader.MoveNext returns false if finishes successfully.
+                if (!result && !callbackDone) 
+                {
+                    // if stream is successfully proceesed, execute callback and make sure callback is called only once.
+                    callback(lastResponse);
+                    callbackDone = true;
+                }
+                return result;
+            }
+
+            public void Dispose()
+            {
+                originalStreamReader.Dispose();
+            }
+        }
 
         private IDictionary<string, AffinityConfig> InitAffinityByMethodIndex(ApiConfig config)
         {
@@ -276,12 +325,24 @@ namespace Grpc.Gcp
             ChannelRef channelRef = tupleResult.Item1;
             string boundKey = tupleResult.Item2;
 
-            CallInvocationDetails<TRequest, TResponse> call =
-                new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
+            var call = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
             AsyncServerStreamingCall<TResponse> originalCall = Calls.AsyncServerStreamingCall(call, request);
 
-            // TODO(weiranfang): Add callback
-            return originalCall;
+            Func<TResponse, TResponse> callback = (resp) =>
+            {
+                PostProcess(affinityConfig, channelRef, boundKey, resp);
+                return resp;
+            };
+
+            var gcpResponseStream = new GcpClientResponseStream<TRequest, TResponse>(originalCall.ResponseStream, callback);
+
+            return new AsyncServerStreamingCall<TResponse>(
+                gcpResponseStream,
+                originalCall.ResponseHeadersAsync,
+                () => originalCall.GetStatus(),
+                () => originalCall.GetTrailers(),
+                () => originalCall.Dispose());
+
         }
 
         public override AsyncUnaryCall<TResponse>
@@ -294,8 +355,7 @@ namespace Grpc.Gcp
             ChannelRef channelRef = tupleResult.Item1;
             string boundKey = tupleResult.Item2;
 
-            CallInvocationDetails<TRequest, TResponse> call = 
-                new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
+            var call = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
             AsyncUnaryCall<TResponse> originalAsyncUnaryCall = Calls.AsyncUnaryCall(call, request);
 
             Func<TResponse, TResponse> callback = (resp) =>
@@ -304,10 +364,11 @@ namespace Grpc.Gcp
                 return resp;
             };
 
-            Task<TResponse> responseAsync = originalAsyncUnaryCall.ResponseAsync
+            var gcpResponseAsync = originalAsyncUnaryCall.ResponseAsync
                 .ContinueWith(antecendent => callback(antecendent.Result));
 
-            return new AsyncUnaryCall<TResponse>(responseAsync,
+            return new AsyncUnaryCall<TResponse>(
+                gcpResponseAsync,
                 originalAsyncUnaryCall.ResponseHeadersAsync,
                 () => originalAsyncUnaryCall.GetStatus(),
                 () => originalAsyncUnaryCall.GetTrailers(),
@@ -325,8 +386,7 @@ namespace Grpc.Gcp
             ChannelRef channelRef = tupleResult.Item1;
             string boundKey = tupleResult.Item2;
 
-            CallInvocationDetails<TRequest, TResponse> call =
-                new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
+            var call = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
             TResponse response = Calls.BlockingUnaryCall<TRequest, TResponse>(call, request);
 
             PostProcess(affinityConfig, channelRef, boundKey, response);

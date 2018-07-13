@@ -9,6 +9,7 @@ using Google.Protobuf;
 using System.IO;
 using System.Text;
 using System.Linq;
+using System.Threading;
 
 namespace Grpc.Gcp.IntegrationTest
 {
@@ -202,6 +203,47 @@ namespace Grpc.Gcp.IntegrationTest
                 Assert.AreEqual(0, invoker.channelRefs[0].AffinityRef);
                 Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
             }
+        }
+
+        [TestMethod]
+        public void ExecuteStreamingSql()
+        {
+            Session session;
+
+            session = client.CreateSession(
+                new CreateSessionRequest { Database = DATABASE });
+            Assert.IsNotNull(session);
+            Assert.AreEqual(1, invoker.channelRefs.Count);
+            Assert.AreEqual(1, invoker.channelRefs[0].AffinityRef);
+            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
+
+            var streamingCall = client.ExecuteStreamingSql(
+                new ExecuteSqlRequest
+                {
+                    Session = session.Name,
+                    Sql = string.Format("select id, data from {0}", TABLE)
+                });
+            Assert.AreEqual(1, invoker.channelRefs.Count);
+            Assert.AreEqual(1, invoker.channelRefs[0].AffinityRef);
+            Assert.AreEqual(1, invoker.channelRefs[0].ActiveStreamRef);
+
+            CancellationTokenSource tokenSource = new CancellationTokenSource();
+            CancellationToken token = tokenSource.Token;
+            var responseStream = streamingCall.ResponseStream;
+            PartialResultSet firstResultSet = null;
+            while (responseStream.MoveNext(token).Result)
+            {
+                if (firstResultSet == null) firstResultSet = responseStream.Current;
+            }
+            Assert.AreEqual(COLUMN_ID_PAYLOAD, firstResultSet?.Values[0].StringValue);
+            Assert.AreEqual(1, invoker.channelRefs.Count);
+            Assert.AreEqual(1, invoker.channelRefs[0].AffinityRef);
+            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
+
+            client.DeleteSession(new DeleteSessionRequest { Name = session.Name });
+            Assert.AreEqual(1, invoker.channelRefs.Count);
+            Assert.AreEqual(0, invoker.channelRefs[0].AffinityRef);
+            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
         }
 
         [TestMethod]
