@@ -115,12 +115,12 @@ namespace Grpc.Gcp
             bool callbackDone = false;
             readonly IAsyncStreamReader<TResponse> originalStreamReader;
             TResponse lastResponse;
-            Func<TResponse, TResponse> callback;
+            Action<TResponse> postProcess;
 
-            public GcpClientResponseStream(IAsyncStreamReader<TResponse> originalStreamReader, Func<TResponse, TResponse> callback)
+            public GcpClientResponseStream(IAsyncStreamReader<TResponse> originalStreamReader, Action<TResponse> postProcess)
             {
                 this.originalStreamReader = originalStreamReader;
-                this.callback = callback;
+                this.postProcess = postProcess;
             }
 
             public TResponse Current
@@ -142,7 +142,7 @@ namespace Grpc.Gcp
                 if (!result && !callbackDone) 
                 {
                     // if stream is successfully proceesed, execute callback and make sure callback is called only once.
-                    callback(lastResponse);
+                    postProcess(lastResponse);
                     callbackDone = true;
                 }
                 return result;
@@ -153,6 +153,40 @@ namespace Grpc.Gcp
                 originalStreamReader.Dispose();
             }
         }
+
+        //private class GcpClientRequestStream<TRequest, TResponse> : IClientStreamWriter<TRequest>
+        //{
+        //    IClientStreamWriter<TRequest> originalStreamWriter;
+
+        //    public GcpClientRequestStream(IClientStreamWriter<TRequest> originalStreamWriter)
+        //    {
+        //        this.originalStreamWriter = originalStreamWriter;
+        //    }
+
+        //    public Task WriteAsync(TRequest message)
+        //    {
+                
+        //        return call.SendMessageAsync(message, GetWriteFlags());
+        //    }
+
+        //    public Task CompleteAsync()
+        //    {
+        //        return call.SendCloseFromClientAsync();
+        //    }
+
+        //    public WriteOptions WriteOptions
+        //    {
+        //        get
+        //        {
+        //            return originalStreamWriter.WriteOptions;
+        //        }
+
+        //        set
+        //        {
+        //            originalStreamWriter.WriteOptions = value;
+        //        }
+        //    }
+        //}
 
         private IDictionary<string, AffinityConfig> InitAffinityByMethodIndex(ApiConfig config)
         {
@@ -306,13 +340,54 @@ namespace Grpc.Gcp
         public override AsyncClientStreamingCall<TRequest, TResponse>
             AsyncClientStreamingCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string host, CallOptions options)
         {
-            throw new System.NotImplementedException();
+            // No channel affinity feature for client streaming call.
+            ChannelRef channelRef = GetChannelRef();
+            var callDetails = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
+            var originalCall = Calls.AsyncClientStreamingCall(callDetails);
+
+            Func<TResponse, TResponse> callback = (resp) =>
+            {
+                channelRef.ActiveStreamRefDecr();
+                return resp;
+            };
+
+            var gcpResponseAsync = originalCall.ResponseAsync
+                .ContinueWith(antecendent => callback(antecendent.Result));
+
+            return new AsyncClientStreamingCall<TRequest, TResponse>(
+                originalCall.RequestStream,
+                gcpResponseAsync,
+                originalCall.ResponseHeadersAsync,
+                () => originalCall.GetStatus(),
+                () => originalCall.GetTrailers(),
+                () => originalCall.Dispose());
         }
 
         public override AsyncDuplexStreamingCall<TRequest, TResponse>
             AsyncDuplexStreamingCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string host, CallOptions options)
         {
-            throw new System.NotImplementedException();
+            // No channel affinity feature for duplex streaming call.
+            ChannelRef channelRef = GetChannelRef();
+            var callDetails = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
+            var originalCall = Calls.AsyncDuplexStreamingCall(callDetails);
+
+            Func<TResponse, TResponse> callback = (resp) =>
+            {
+                channelRef.ActiveStreamRefDecr();
+                return resp;
+            };
+
+            var gcpResponseStream = new GcpClientResponseStream<TRequest, TResponse>(
+                originalCall.ResponseStream,
+                (resp) => channelRef.ActiveStreamRefDecr());
+
+            return new AsyncDuplexStreamingCall<TRequest, TResponse>(
+                originalCall.RequestStream,
+                gcpResponseStream,
+                originalCall.ResponseHeadersAsync,
+                () => originalCall.GetStatus(),
+                () => originalCall.GetTrailers(),
+                () => originalCall.Dispose());
         }
 
         public override AsyncServerStreamingCall<TResponse>
@@ -325,16 +400,12 @@ namespace Grpc.Gcp
             ChannelRef channelRef = tupleResult.Item1;
             string boundKey = tupleResult.Item2;
 
-            var call = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
-            AsyncServerStreamingCall<TResponse> originalCall = Calls.AsyncServerStreamingCall(call, request);
+            var callDetails = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
+            var originalCall = Calls.AsyncServerStreamingCall(callDetails, request);
 
-            Func<TResponse, TResponse> callback = (resp) =>
-            {
-                PostProcess(affinityConfig, channelRef, boundKey, resp);
-                return resp;
-            };
-
-            var gcpResponseStream = new GcpClientResponseStream<TRequest, TResponse>(originalCall.ResponseStream, callback);
+            var gcpResponseStream = new GcpClientResponseStream<TRequest, TResponse>(
+                originalCall.ResponseStream,
+                (resp) => PostProcess(affinityConfig, channelRef, boundKey, resp));
 
             return new AsyncServerStreamingCall<TResponse>(
                 gcpResponseStream,
@@ -355,8 +426,8 @@ namespace Grpc.Gcp
             ChannelRef channelRef = tupleResult.Item1;
             string boundKey = tupleResult.Item2;
 
-            var call = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
-            AsyncUnaryCall<TResponse> originalAsyncUnaryCall = Calls.AsyncUnaryCall(call, request);
+            var callDetails = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
+            var originalCall = Calls.AsyncUnaryCall(callDetails, request);
 
             Func<TResponse, TResponse> callback = (resp) =>
             {
@@ -364,15 +435,15 @@ namespace Grpc.Gcp
                 return resp;
             };
 
-            var gcpResponseAsync = originalAsyncUnaryCall.ResponseAsync
+            var gcpResponseAsync = originalCall.ResponseAsync
                 .ContinueWith(antecendent => callback(antecendent.Result));
 
             return new AsyncUnaryCall<TResponse>(
                 gcpResponseAsync,
-                originalAsyncUnaryCall.ResponseHeadersAsync,
-                () => originalAsyncUnaryCall.GetStatus(),
-                () => originalAsyncUnaryCall.GetTrailers(),
-                () => originalAsyncUnaryCall.Dispose());
+                originalCall.ResponseHeadersAsync,
+                () => originalCall.GetStatus(),
+                () => originalCall.GetTrailers(),
+                () => originalCall.Dispose());
 
         }
 
@@ -386,8 +457,8 @@ namespace Grpc.Gcp
             ChannelRef channelRef = tupleResult.Item1;
             string boundKey = tupleResult.Item2;
 
-            var call = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
-            TResponse response = Calls.BlockingUnaryCall<TRequest, TResponse>(call, request);
+            var callDetails = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
+            TResponse response = Calls.BlockingUnaryCall<TRequest, TResponse>(callDetails, request);
 
             PostProcess(affinityConfig, channelRef, boundKey, response);
             return response;
