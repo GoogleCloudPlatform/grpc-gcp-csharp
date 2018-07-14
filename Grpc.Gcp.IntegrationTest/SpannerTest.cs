@@ -79,10 +79,10 @@ namespace Grpc.Gcp.IntegrationTest
 
             for (int i = 0; i < DEFAULT_MAX_CHANNELS_PER_TARGET; i++)
             {
-                AsyncUnaryCall<Session> call = client.CreateSessionAsync(
+                var call = client.CreateSessionAsync(
                     new CreateSessionRequest { Database = DATABASE });
                 calls.Add(call);
-                //Assert.AreEqual(i + 1, invoker.channelRefs.Count);
+                Assert.AreEqual(i + 1, invoker.channelRefs.Count);
             }
             for (int i = 0; i < calls.Count; i++)
             {
@@ -94,7 +94,7 @@ namespace Grpc.Gcp.IntegrationTest
 
             for (int i = 0; i < DEFAULT_MAX_CHANNELS_PER_TARGET; i++)
             {
-                AsyncUnaryCall<Session> call = client.CreateSessionAsync(
+                var call = client.CreateSessionAsync(
                     new CreateSessionRequest { Database = DATABASE });
                 calls.Add(call);
                 Assert.AreEqual(DEFAULT_MAX_CHANNELS_PER_TARGET, invoker.channelRefs.Count);
@@ -319,5 +319,93 @@ namespace Grpc.Gcp.IntegrationTest
 
         }
 
+        [TestMethod]
+        public void ConcurrentStreams()
+        {
+            config = new ApiConfig();
+            int lowWatermark = 5;
+            InitApiConfig((uint) lowWatermark, 10);
+            InitClient();
+
+            var sessions = new List<Session>();
+            var calls = new List<AsyncServerStreamingCall<PartialResultSet>>();
+
+            for (int i = 0; i < lowWatermark; i++)
+            {
+                Session session = client.CreateSession(
+                    new CreateSessionRequest { Database = DATABASE });
+                Assert.AreEqual(1, invoker.channelRefs.Count);
+                Assert.AreEqual(i + 1, invoker.channelRefs[0].AffinityRef);
+                Assert.AreEqual(i, invoker.channelRefs[0].ActiveStreamRef);
+                Assert.IsNotNull(session);
+
+                sessions.Add(session);
+
+                var streamingCall = client.ExecuteStreamingSql(
+                    new ExecuteSqlRequest
+                    {
+                        Session = session.Name,
+                        Sql = string.Format("select id, data from {0}", TABLE)
+                    });
+                Assert.AreEqual(1, invoker.channelRefs.Count);
+                Assert.AreEqual(i + 1, invoker.channelRefs[0].AffinityRef);
+                Assert.AreEqual(i + 1, invoker.channelRefs[0].ActiveStreamRef);
+
+                calls.Add(streamingCall);
+            }
+
+            // When number of active streams reaches the lowWaterMark,
+            // New channel should be created.
+
+            Session anotherSession = client.CreateSession(
+                new CreateSessionRequest { Database = DATABASE });
+            Assert.AreEqual(2, invoker.channelRefs.Count);
+            Assert.AreEqual(lowWatermark, invoker.channelRefs[0].AffinityRef);
+            Assert.AreEqual(lowWatermark, invoker.channelRefs[0].ActiveStreamRef);
+            Assert.AreEqual(1, invoker.channelRefs[1].AffinityRef);
+            Assert.AreEqual(0, invoker.channelRefs[1].ActiveStreamRef);
+            Assert.IsNotNull(anotherSession);
+
+            sessions.Add(anotherSession);
+
+            var anotherStreamingCall = client.ExecuteStreamingSql(
+                new ExecuteSqlRequest
+                {
+                    Session = anotherSession.Name,
+                    Sql = string.Format("select id, data from {0}", TABLE)
+                });
+            Assert.AreEqual(2, invoker.channelRefs.Count);
+            Assert.AreEqual(lowWatermark, invoker.channelRefs[0].AffinityRef);
+            Assert.AreEqual(lowWatermark, invoker.channelRefs[0].ActiveStreamRef);
+            Assert.AreEqual(1, invoker.channelRefs[1].AffinityRef);
+            Assert.AreEqual(1, invoker.channelRefs[1].ActiveStreamRef);
+
+            calls.Add(anotherStreamingCall);
+
+            // Clean open streams.
+            CancellationTokenSource tokenSource = new CancellationTokenSource();
+            CancellationToken token = tokenSource.Token;
+            for (int i = 0; i < calls.Count; i++)
+            {
+                var responseStream = calls[i].ResponseStream;
+                while (responseStream.MoveNext(token).Result) { };
+            }
+            Assert.AreEqual(2, invoker.channelRefs.Count);
+            Assert.AreEqual(lowWatermark, invoker.channelRefs[0].AffinityRef);
+            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
+            Assert.AreEqual(1, invoker.channelRefs[1].AffinityRef);
+            Assert.AreEqual(0, invoker.channelRefs[1].ActiveStreamRef);
+
+            // Delete all sessions to clean affinity.
+            for (int i = 0; i < sessions.Count; i++)
+            {
+                client.DeleteSession(new DeleteSessionRequest { Name = sessions[i].Name });
+            }
+            Assert.AreEqual(2, invoker.channelRefs.Count);
+            Assert.AreEqual(0, invoker.channelRefs[0].AffinityRef);
+            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
+            Assert.AreEqual(0, invoker.channelRefs[1].AffinityRef);
+            Assert.AreEqual(0, invoker.channelRefs[1].ActiveStreamRef);
+        }
     }
 }

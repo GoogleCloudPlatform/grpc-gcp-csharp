@@ -31,7 +31,7 @@ namespace Grpc.Gcp.IntegrationTest
         public void SetUp()
         {
             Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", "C:\\Users\\weiranf\\keys\\grpc-gcp-7ed990546b68.json");
-            InitApiConfig();
+            InitApiConfig(1, 10);
             InitClient();
         }
 
@@ -44,11 +44,11 @@ namespace Grpc.Gcp.IntegrationTest
             client = new Bigtable.BigtableClient(invoker);
         }
 
-        private void InitApiConfig()
+        private void InitApiConfig(uint maxConcurrentStreams, uint maxSize)
         {
             config.ChannelPool = new ChannelPoolConfig();
-            config.ChannelPool.MaxConcurrentStreamsLowWatermark = 1;
-            config.ChannelPool.MaxSize = 10;
+            config.ChannelPool.MaxConcurrentStreamsLowWatermark = maxConcurrentStreams;
+            config.ChannelPool.MaxSize = maxSize;
         }
 
         private void AddMethod(ApiConfig config, string name, AffinityConfig.Types.Command command, string affinityKey)
@@ -140,6 +140,62 @@ namespace Grpc.Gcp.IntegrationTest
             Assert.AreEqual("test-value", firstResponse.Chunks[0].Value.ToStringUtf8());
             Assert.AreEqual(1, invoker.channelRefs.Count);
             Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
+        }
+
+        [TestMethod]
+        public void ConcurrentStreams()
+        {
+            config = new ApiConfig();
+            int lowWatermark = 5;
+            InitApiConfig((uint)lowWatermark, 10);
+            InitClient();
+
+            var calls = new List<AsyncServerStreamingCall<ReadRowsResponse>>();
+
+            for (int i = 0; i < lowWatermark; i++)
+            {
+                var streamingCall = client.ReadRows(
+                    new ReadRowsRequest
+                    {
+                        TableName = TABLE,
+                        Rows = new RowSet
+                        {
+                            RowKeys = { ByteString.CopyFromUtf8(ROW_KEY) }
+                        }
+                    });
+                Assert.AreEqual(1, invoker.channelRefs.Count);
+                Assert.AreEqual(i + 1, invoker.channelRefs[0].ActiveStreamRef);
+                calls.Add(streamingCall);
+            }
+
+            // When number of active streams reaches the lowWaterMark,
+            // New channel should be created.
+            var anotherStreamingCall = client.ReadRows(
+                new ReadRowsRequest
+                {
+                    TableName = TABLE,
+                    Rows = new RowSet
+                    {
+                        RowKeys = { ByteString.CopyFromUtf8(ROW_KEY) }
+                    }
+                });
+            Assert.AreEqual(2, invoker.channelRefs.Count);
+            Assert.AreEqual(lowWatermark, invoker.channelRefs[0].ActiveStreamRef);
+            Assert.AreEqual(1, invoker.channelRefs[1].ActiveStreamRef);
+            calls.Add(anotherStreamingCall);
+
+            // Clean open streams.
+            // Clean open streams.
+            CancellationTokenSource tokenSource = new CancellationTokenSource();
+            CancellationToken token = tokenSource.Token;
+            for (int i = 0; i < calls.Count; i++)
+            {
+                var responseStream = calls[i].ResponseStream;
+                while (responseStream.MoveNext(token).Result) { };
+            }
+            Assert.AreEqual(2, invoker.channelRefs.Count);
+            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
+            Assert.AreEqual(0, invoker.channelRefs[1].ActiveStreamRef);
         }
 
     }
