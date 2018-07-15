@@ -185,7 +185,6 @@ namespace Grpc.Gcp.IntegrationTest
             calls.Add(anotherStreamingCall);
 
             // Clean open streams.
-            // Clean open streams.
             CancellationTokenSource tokenSource = new CancellationTokenSource();
             CancellationToken token = tokenSource.Token;
             for (int i = 0; i < calls.Count; i++)
@@ -196,6 +195,71 @@ namespace Grpc.Gcp.IntegrationTest
             Assert.AreEqual(2, invoker.channelRefs.Count);
             Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
             Assert.AreEqual(0, invoker.channelRefs[1].ActiveStreamRef);
+        }
+
+        [TestMethod]
+        public void AsyncCallsWithNewChannels()
+        {
+            var calls = new List<AsyncServerStreamingCall<ReadRowsResponse>>();
+
+            for (int i = 0; i < DEFAULT_MAX_CHANNELS_PER_TARGET; i++)
+            {
+                var streamingCall = client.ReadRows(
+                    new ReadRowsRequest
+                    {
+                        TableName = TABLE,
+                        Rows = new RowSet
+                        {
+                            RowKeys = { ByteString.CopyFromUtf8(ROW_KEY) }
+                        }
+                    });
+                Assert.AreEqual(i + 1, invoker.channelRefs.Count);
+                calls.Add(streamingCall);
+            }
+
+            // When number of channels reaches the max, old channels will be reused,
+            // even when the number of active streams is higher than the watermark.
+            for (int i = 0; i < DEFAULT_MAX_CHANNELS_PER_TARGET; i++)
+            {
+                var streamingCall = client.ReadRows(
+                    new ReadRowsRequest
+                    {
+                        TableName = TABLE,
+                        Rows = new RowSet
+                        {
+                            RowKeys = { ByteString.CopyFromUtf8(ROW_KEY) }
+                        }
+                    });
+                Assert.AreEqual(DEFAULT_MAX_CHANNELS_PER_TARGET, invoker.channelRefs.Count);
+                calls.Add(streamingCall);
+            }
+
+            // Clean open streams.
+            CancellationTokenSource tokenSource = new CancellationTokenSource();
+            CancellationToken token = tokenSource.Token;
+            for (int i = 0; i < calls.Count; i++)
+            {
+                var responseStream = calls[i].ResponseStream;
+                while (responseStream.MoveNext(token).Result) { };
+            }
+            Assert.AreEqual(DEFAULT_MAX_CHANNELS_PER_TARGET, invoker.channelRefs.Count);
+
+            var channelRefs = invoker.channelRefs;
+            for (int i = 0; i < channelRefs.Count; i++)
+            {
+                var channel = channelRefs[i].Channel;
+                var state = channel.State;
+                Assert.AreEqual(ChannelState.Ready, channel.State);
+            }
+
+            // Shutdown all channels in the channel pool.
+            invoker.ShutdownAsync().Wait();
+
+            for (int i = 0; i < channelRefs.Count; i++)
+            {
+                var channel = channelRefs[i].Channel;
+                Assert.AreEqual(ChannelState.Shutdown, channel.State);
+            }
         }
 
     }

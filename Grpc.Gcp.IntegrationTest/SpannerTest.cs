@@ -407,5 +407,40 @@ namespace Grpc.Gcp.IntegrationTest
             Assert.AreEqual(0, invoker.channelRefs[1].AffinityRef);
             Assert.AreEqual(0, invoker.channelRefs[1].ActiveStreamRef);
         }
+
+        [TestMethod]
+        public void ShutdownChannels()
+        {
+            IList<AsyncUnaryCall<Session>> calls = new List<AsyncUnaryCall<Session>>();
+
+            for (int i = 0; i < DEFAULT_MAX_CHANNELS_PER_TARGET; i++)
+            {
+                var call = client.CreateSessionAsync(
+                    new CreateSessionRequest { Database = DATABASE });
+                calls.Add(call);
+                Assert.AreEqual(i + 1, invoker.channelRefs.Count);
+            }
+            for (int i = 0; i < calls.Count; i++)
+            {
+                client.DeleteSession(
+                    new DeleteSessionRequest { Name = calls[i].ResponseAsync.Result.Name });
+            }
+
+            var channelRefs = invoker.channelRefs;
+            for (int i = 0; i < channelRefs.Count; i++)
+            {
+                var channel = channelRefs[i].Channel;
+                Assert.AreEqual(ChannelState.Ready, channel.State);
+            }
+
+            // Shutdown all channels in the channel pool.
+            invoker.ShutdownAsync().Wait();
+
+            for (int i = 0; i < channelRefs.Count; i++)
+            {
+                var channel = channelRefs[i].Channel;
+                Assert.AreEqual(ChannelState.Shutdown, channel.State);
+            }
+        }
     }
 }

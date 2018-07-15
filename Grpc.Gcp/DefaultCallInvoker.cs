@@ -70,6 +70,10 @@ namespace Grpc.Gcp
 
     }
 
+    /// <summary>
+    /// Invokes client RPCs using <see cref="Calls"/>.
+    /// Calls are made through underlying gcp channel pool.
+    /// </summary>
     public class DefaultCallInvoker : CallInvoker
     {
         public static readonly string API_CONFIG_CHANNEL_ARG = "grpc_gcp.api_config";
@@ -337,6 +341,10 @@ namespace Grpc.Gcp
             
         }
 
+        /// <summary>
+        /// Invokes a client streaming call asynchronously.
+        /// In client streaming scenario, client sends a stream of requests and server responds with a single response.
+        /// </summary>
         public override AsyncClientStreamingCall<TRequest, TResponse>
             AsyncClientStreamingCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string host, CallOptions options)
         {
@@ -363,6 +371,11 @@ namespace Grpc.Gcp
                 () => originalCall.Dispose());
         }
 
+        /// <summary>
+        /// Invokes a duplex streaming call asynchronously.
+        /// In duplex streaming scenario, client sends a stream of requests and server responds with a stream of responses.
+        /// The response stream is completely independent and both side can be sending messages at the same time.
+        /// </summary>
         public override AsyncDuplexStreamingCall<TRequest, TResponse>
             AsyncDuplexStreamingCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string host, CallOptions options)
         {
@@ -390,6 +403,10 @@ namespace Grpc.Gcp
                 () => originalCall.Dispose());
         }
 
+        /// <summary>
+        /// Invokes a server streaming call asynchronously.
+        /// In server streaming scenario, client sends on request and server responds with a stream of responses.
+        /// </summary>
         public override AsyncServerStreamingCall<TResponse>
             AsyncServerStreamingCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string host, CallOptions options, TRequest request)
         {
@@ -416,6 +433,9 @@ namespace Grpc.Gcp
 
         }
 
+        /// <summary>
+        /// Invokes a simple remote call asynchronously.
+        /// </summary>
         public override AsyncUnaryCall<TResponse>
             AsyncUnaryCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string host, CallOptions options, TRequest request)
         {
@@ -447,6 +467,9 @@ namespace Grpc.Gcp
 
         }
 
+        /// <summary>
+        /// Invokes a simple remote call in a blocking fashion.
+        /// </summary>
         public override TResponse
             BlockingUnaryCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string host, CallOptions options, TRequest request)
         {
@@ -464,6 +487,23 @@ namespace Grpc.Gcp
             return response;
         }
 
-        // TODO(weiranfang): Expose method that shuts down all channels in the channel pool.
+        /// <summary>
+        /// Shuts down the all channels in the underlying channel pool cleanly. It is strongly
+        /// recommended to shutdown all previously created channels before exiting from the process.
+        /// </summary>
+        /// <remarks>
+        /// This method doesn't wait for all calls on this channel to finish (nor does
+        /// it explicitly cancel all outstanding calls). It is user's responsibility to make sure
+        /// all the calls on this channel have finished (successfully or with an error)
+        /// before shutting down the channel to ensure channel shutdown won't impact
+        /// the outcome of those remote calls.
+        /// </remarks>
+        public async Task ShutdownAsync()
+        {
+            for (int i = 0; i < channelRefs.Count; i++)
+            {
+                await channelRefs[i].Channel.ShutdownAsync();
+            }
+        }
     }
 }
