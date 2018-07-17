@@ -112,6 +112,7 @@ namespace Grpc.Gcp
             this(string.Format("{0}:{1}", host, port), credentials, options)
         { }
 
+        // A wrapper class for executing post process for server streaming responses.
         private class GcpClientResponseStream<TRequest, TResponse> : IAsyncStreamReader<TResponse>
             where TRequest : class
             where TResponse : class
@@ -157,40 +158,6 @@ namespace Grpc.Gcp
                 originalStreamReader.Dispose();
             }
         }
-
-        //private class GcpClientRequestStream<TRequest, TResponse> : IClientStreamWriter<TRequest>
-        //{
-        //    IClientStreamWriter<TRequest> originalStreamWriter;
-
-        //    public GcpClientRequestStream(IClientStreamWriter<TRequest> originalStreamWriter)
-        //    {
-        //        this.originalStreamWriter = originalStreamWriter;
-        //    }
-
-        //    public Task WriteAsync(TRequest message)
-        //    {
-                
-        //        return call.SendMessageAsync(message, GetWriteFlags());
-        //    }
-
-        //    public Task CompleteAsync()
-        //    {
-        //        return call.SendCloseFromClientAsync();
-        //    }
-
-        //    public WriteOptions WriteOptions
-        //    {
-        //        get
-        //        {
-        //            return originalStreamWriter.WriteOptions;
-        //        }
-
-        //        set
-        //        {
-        //            originalStreamWriter.WriteOptions = value;
-        //        }
-        //    }
-        //}
 
         private IDictionary<string, AffinityConfig> InitAffinityByMethodIndex(ApiConfig config)
         {
@@ -310,6 +277,7 @@ namespace Grpc.Gcp
 
         private Tuple<ChannelRef, string> PreProcess<TRequest>(AffinityConfig affinityConfig, TRequest request)
         {
+            // Gets the affinity bound key if required in the request method.
             string boundKey = null;
             if (affinityConfig != null)
             {
@@ -327,6 +295,7 @@ namespace Grpc.Gcp
         private void PostProcess<TResponse>(AffinityConfig affinityConfig, ChannelRef channelRef, string boundKey, TResponse response)
         {
             channelRef.ActiveStreamRefDecr();
+            // Process BIND or UNBIND if the method has affinity feature enabled.
             if (affinityConfig != null)
             {
                 if (affinityConfig.Command == AffinityConfig.Types.Command.Bind)
@@ -359,9 +328,11 @@ namespace Grpc.Gcp
                 return resp;
             };
 
+            // Decrease the active streams count once async response finishes.
             var gcpResponseAsync = originalCall.ResponseAsync
                 .ContinueWith(antecendent => callback(antecendent.Result));
 
+            // Create a wrapper of the original AsyncClientStreamingCall.
             return new AsyncClientStreamingCall<TRequest, TResponse>(
                 originalCall.RequestStream,
                 gcpResponseAsync,
@@ -390,10 +361,12 @@ namespace Grpc.Gcp
                 return resp;
             };
 
+            // Decrease the active streams count once the streaming response finishes its final batch.
             var gcpResponseStream = new GcpClientResponseStream<TRequest, TResponse>(
                 originalCall.ResponseStream,
                 (resp) => channelRef.ActiveStreamRefDecr());
 
+            // Create a wrapper of the original AsyncDuplexStreamingCall.
             return new AsyncDuplexStreamingCall<TRequest, TResponse>(
                 originalCall.RequestStream,
                 gcpResponseStream,
@@ -420,10 +393,12 @@ namespace Grpc.Gcp
             var callDetails = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
             var originalCall = Calls.AsyncServerStreamingCall(callDetails, request);
 
+            // Executes affinity postprocess once the streaming response finishes its final batch.
             var gcpResponseStream = new GcpClientResponseStream<TRequest, TResponse>(
                 originalCall.ResponseStream,
                 (resp) => PostProcess(affinityConfig, channelRef, boundKey, resp));
 
+            // Create a wrapper of the original AsyncServerStreamingCall.
             return new AsyncServerStreamingCall<TResponse>(
                 gcpResponseStream,
                 originalCall.ResponseHeadersAsync,
@@ -455,9 +430,11 @@ namespace Grpc.Gcp
                 return resp;
             };
 
+            // Executes affinity postprocess once the async response finishes.
             var gcpResponseAsync = originalCall.ResponseAsync
                 .ContinueWith(antecendent => callback(antecendent.Result));
 
+            // Create a wrapper of the original AsyncUnaryCall.
             return new AsyncUnaryCall<TResponse>(
                 gcpResponseAsync,
                 originalCall.ResponseHeadersAsync,
@@ -491,13 +468,6 @@ namespace Grpc.Gcp
         /// Shuts down the all channels in the underlying channel pool cleanly. It is strongly
         /// recommended to shutdown all previously created channels before exiting from the process.
         /// </summary>
-        /// <remarks>
-        /// This method doesn't wait for all calls on this channel to finish (nor does
-        /// it explicitly cancel all outstanding calls). It is user's responsibility to make sure
-        /// all the calls on this channel have finished (successfully or with an error)
-        /// before shutting down the channel to ensure channel shutdown won't impact
-        /// the outcome of those remote calls.
-        /// </remarks>
         public async Task ShutdownAsync()
         {
             for (int i = 0; i < channelRefs.Count; i++)
