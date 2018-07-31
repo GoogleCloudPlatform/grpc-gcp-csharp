@@ -1,80 +1,17 @@
-﻿using Grpc.Core;
+﻿using Google.Protobuf;
+using Grpc.Core;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Google.Protobuf;
-using System.IO;
-using System.Text;
 using System.Threading.Tasks;
-using Grpc.Core.Interceptors;
-using Grpc.Core.Utils;
-using System.Threading;
 
 namespace Grpc.Gcp
 {
-    class ChannelRef
-    {
-        private int affinityRef;
-        private int activeStreamRef;
-        private Channel channel;
-        private int id;
-
-        public ChannelRef(Channel channel, int id, int affinityRef = 0, int activeStreamRef = 0)
-        {
-            this.channel = channel;
-            this.id = id;
-            this.affinityRef = affinityRef;
-            this.activeStreamRef = activeStreamRef;
-        }
-
-        public void AffinityRefIncr()
-        {
-            affinityRef++;
-        }
-
-        public void AffinityRefDecr()
-        {
-            affinityRef--;
-        }
-
-        public int AffinityRef
-        {
-            get
-            {
-                return affinityRef;
-            }
-        }
-
-        public void ActiveStreamRefIncr()
-        {
-            activeStreamRef++;
-        }
-
-        public void ActiveStreamRefDecr()
-        {
-            activeStreamRef--;
-        }
-
-        public int ActiveStreamRef
-        {
-            get
-            {
-                return activeStreamRef;
-            }
-        }
-
-        public Channel Channel
-        {
-            get { return channel; }
-        }
-
-    }
-
     /// <summary>
     /// Invokes client RPCs using <see cref="Calls"/>.
     /// Calls are made through underlying gcp channel pool.
     /// </summary>
-    public class DefaultCallInvoker : CallInvoker
+    public class GcpCallInvoker : CallInvoker
     {
         public static readonly string API_CONFIG_CHANNEL_ARG = "grpc_gcp.api_config";
         private static readonly string CLIENT_CHANNEL_ID = "grpc_gcp.client_channel.id";
@@ -87,9 +24,9 @@ namespace Grpc.Gcp
         private readonly ChannelCredentials credentials;
         private readonly IEnumerable<ChannelOption> options;
 
-        public DefaultCallInvoker(string target, ChannelCredentials credentials) : this(target, credentials, null) { }
+        public GcpCallInvoker(string target, ChannelCredentials credentials) : this(target, credentials, null) { }
 
-        public DefaultCallInvoker(string target, ChannelCredentials credentials, IEnumerable<ChannelOption> options)
+        public GcpCallInvoker(string target, ChannelCredentials credentials, IEnumerable<ChannelOption> options)
         {
             this.target = target;
             this.credentials = credentials;
@@ -106,58 +43,11 @@ namespace Grpc.Gcp
             }
         }
 
-        public DefaultCallInvoker(string host, int port, ChannelCredentials credentials) : this(host, port, credentials, null) { }
+        public GcpCallInvoker(string host, int port, ChannelCredentials credentials) : this(host, port, credentials, null) { }
 
-        public DefaultCallInvoker(string host, int port, ChannelCredentials credentials, IEnumerable<ChannelOption> options) :
+        public GcpCallInvoker(string host, int port, ChannelCredentials credentials, IEnumerable<ChannelOption> options) :
             this(string.Format("{0}:{1}", host, port), credentials, options)
         { }
-
-        // A wrapper class for executing post process for server streaming responses.
-        private class GcpClientResponseStream<TRequest, TResponse> : IAsyncStreamReader<TResponse>
-            where TRequest : class
-            where TResponse : class
-        {
-            bool callbackDone = false;
-            readonly IAsyncStreamReader<TResponse> originalStreamReader;
-            TResponse lastResponse;
-            Action<TResponse> postProcess;
-
-            public GcpClientResponseStream(IAsyncStreamReader<TResponse> originalStreamReader, Action<TResponse> postProcess)
-            {
-                this.originalStreamReader = originalStreamReader;
-                this.postProcess = postProcess;
-            }
-
-            public TResponse Current
-            {
-                get
-                {
-                    TResponse current = originalStreamReader.Current;
-                    // Record the last response.
-                    lastResponse = current;
-                    return current;
-                }
-            }
-
-            public async Task<bool> MoveNext(CancellationToken token)
-            {
-                bool result = await originalStreamReader.MoveNext(token);
-
-                // The last invokcation of originalStreamReader.MoveNext returns false if finishes successfully.
-                if (!result && !callbackDone) 
-                {
-                    // if stream is successfully proceesed, execute callback and make sure callback is called only once.
-                    postProcess(lastResponse);
-                    callbackDone = true;
-                }
-                return result;
-            }
-
-            public void Dispose()
-            {
-                originalStreamReader.Dispose();
-            }
-        }
 
         private IDictionary<string, AffinityConfig> InitAffinityByMethodIndex(ApiConfig config)
         {
@@ -194,10 +84,10 @@ namespace Grpc.Gcp
 
                 // TODO(fengli): Creates new gRPC channels on demand, depends on the load reporting.
                 IOrderedEnumerable<ChannelRef> orderedChannelRefs =
-                    channelRefs.OrderBy(channelRef => channelRef.ActiveStreamRef);
+                    channelRefs.OrderBy(channelRef => channelRef.ActiveStreamCount);
                 foreach (ChannelRef channelRef in orderedChannelRefs)
                 {
-                    if (channelRef.ActiveStreamRef < config.ChannelPool.MaxConcurrentStreamsLowWatermark)
+                    if (channelRef.ActiveStreamCount < config.ChannelPool.MaxConcurrentStreamsLowWatermark)
                     {
                         // If there's a free channel, use it.
                         return channelRef;
@@ -257,7 +147,7 @@ namespace Grpc.Gcp
                 {
                     channelRefByAffinityKey.Add(affinityKey, channelRef);
                 }
-                channelRefByAffinityKey[affinityKey].AffinityRefIncr();
+                channelRefByAffinityKey[affinityKey].AffinityCountIncr();
             }
         }
 
@@ -268,7 +158,7 @@ namespace Grpc.Gcp
                 ChannelRef channelRef = null;
                 if (channelRefByAffinityKey.TryGetValue(affinityKey, out channelRef))
                 {
-                    channelRef.AffinityRefDecr();
+                    channelRef.AffinityCountDecr();
                     channelRefByAffinityKey.Remove(affinityKey);
                 }
                 return channelRef;
@@ -288,13 +178,13 @@ namespace Grpc.Gcp
                 }
             }
             ChannelRef channelRef = GetChannelRef(boundKey);
-            channelRef.ActiveStreamRefIncr();
+            channelRef.ActiveStreamCountIncr();
             return new Tuple<ChannelRef, string>(channelRef, boundKey);
         }
 
         private void PostProcess<TResponse>(AffinityConfig affinityConfig, ChannelRef channelRef, string boundKey, TResponse response)
         {
-            channelRef.ActiveStreamRefDecr();
+            channelRef.ActiveStreamCountDecr();
             // Process BIND or UNBIND if the method has affinity feature enabled.
             if (affinityConfig != null)
             {
@@ -324,7 +214,7 @@ namespace Grpc.Gcp
 
             Func<TResponse, TResponse> callback = (resp) =>
             {
-                channelRef.ActiveStreamRefDecr();
+                channelRef.ActiveStreamCountDecr();
                 return resp;
             };
 
@@ -357,14 +247,14 @@ namespace Grpc.Gcp
 
             Func<TResponse, TResponse> callback = (resp) =>
             {
-                channelRef.ActiveStreamRefDecr();
+                channelRef.ActiveStreamCountDecr();
                 return resp;
             };
 
             // Decrease the active streams count once the streaming response finishes its final batch.
             var gcpResponseStream = new GcpClientResponseStream<TRequest, TResponse>(
                 originalCall.ResponseStream,
-                (resp) => channelRef.ActiveStreamRefDecr());
+                (resp) => channelRef.ActiveStreamCountDecr());
 
             // Create a wrapper of the original AsyncDuplexStreamingCall.
             return new AsyncDuplexStreamingCall<TRequest, TResponse>(

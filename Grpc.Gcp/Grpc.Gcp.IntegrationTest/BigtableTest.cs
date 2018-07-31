@@ -1,13 +1,11 @@
-﻿using System;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Google.Apis.Auth.OAuth2;
 using Google.Cloud.Bigtable.V2;
-using Google.Apis.Auth.OAuth2;
-using System.IO;
-using Grpc.Core;
-using System.Collections.Generic;
 using Google.Protobuf;
-using System.Text;
 using Grpc.Auth;
+using Grpc.Core;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System;
+using System.Collections.Generic;
 using System.Threading;
 
 namespace Grpc.Gcp.IntegrationTest
@@ -15,22 +13,20 @@ namespace Grpc.Gcp.IntegrationTest
     [TestClass]
     public class BigtableTest
     {
-        private const string TARGET = "bigtable.googleapis.com";
-        private const string TABLE = "projects/grpc-gcp/instances/test-instance/tables/test-table";
-        private const string OAUTH_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
-        private const string ROW_KEY = "test-row";
-        private const string VALUE = "test-value";
-        private const string COLUMN_FAMILY = "test-cf";
-        private const string COLUMN_QUALIFIER = "test-cq";
-        private const Int32 DEFAULT_MAX_CHANNELS_PER_TARGET = 10;
+        private const string Target = "bigtable.googleapis.com";
+        private const string TableName = "projects/grpc-gcp/instances/test-instance/tables/test-table";
+        private const string RowKey = "test-row";
+        private const string TestValue = "test-value";
+        private const string ColumnFamily = "test-cf";
+        private const string ColumnQualifier = "test-cq";
+        private const Int32 DefaultMaxChannelsPerTarget = 10;
         private ApiConfig config = new ApiConfig();
-        private DefaultCallInvoker invoker;
+        private GcpCallInvoker invoker;
         private Bigtable.BigtableClient client;
 
         [TestInitialize]
         public void SetUp()
         {
-            Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", "C:\\Users\\weiranf\\keys\\grpc-gcp-7ed990546b68.json");
             InitApiConfig(1, 10);
             InitClient();
         }
@@ -39,8 +35,8 @@ namespace Grpc.Gcp.IntegrationTest
         {
             GoogleCredential credential = GoogleCredential.GetApplicationDefault();
             IList<ChannelOption> options = new List<ChannelOption>() {
-                new ChannelOption(DefaultCallInvoker.API_CONFIG_CHANNEL_ARG, config.ToString()) };
-            invoker = new DefaultCallInvoker(TARGET, credential.ToChannelCredentials(), options);
+                new ChannelOption(GcpCallInvoker.API_CONFIG_CHANNEL_ARG, config.ToString()) };
+            invoker = new GcpCallInvoker(Target, credential.ToChannelCredentials(), options);
             client = new Bigtable.BigtableClient(invoker);
         }
 
@@ -66,17 +62,17 @@ namespace Grpc.Gcp.IntegrationTest
         {
             MutateRowRequest mutateRowRequest = new MutateRowRequest
             {
-                TableName = TABLE,
-                RowKey = ByteString.CopyFromUtf8(ROW_KEY)
+                TableName = TableName,
+                RowKey = ByteString.CopyFromUtf8(RowKey)
             };
 
             Mutation mutation = new Mutation
             {
                 SetCell = new Mutation.Types.SetCell
                 {
-                    FamilyName = COLUMN_FAMILY,
-                    ColumnQualifier = ByteString.CopyFromUtf8(COLUMN_QUALIFIER),
-                    Value = ByteString.CopyFromUtf8(VALUE),
+                    FamilyName = ColumnFamily,
+                    ColumnQualifier = ByteString.CopyFromUtf8(ColumnQualifier),
+                    Value = ByteString.CopyFromUtf8(TestValue),
                 }
             };
 
@@ -91,17 +87,17 @@ namespace Grpc.Gcp.IntegrationTest
         {
             MutateRowRequest mutateRowRequest = new MutateRowRequest
             {
-                TableName = TABLE,
-                RowKey = ByteString.CopyFromUtf8(ROW_KEY),
+                TableName = TableName,
+                RowKey = ByteString.CopyFromUtf8(RowKey),
             };
 
             Mutation mutation = new Mutation
             {
                 SetCell = new Mutation.Types.SetCell
                 {
-                    FamilyName = COLUMN_FAMILY,
-                    ColumnQualifier = ByteString.CopyFromUtf8(COLUMN_QUALIFIER),
-                    Value = ByteString.CopyFromUtf8(VALUE),
+                    FamilyName = ColumnFamily,
+                    ColumnQualifier = ByteString.CopyFromUtf8(ColumnQualifier),
+                    Value = ByteString.CopyFromUtf8(TestValue),
                 }
             };
 
@@ -109,9 +105,9 @@ namespace Grpc.Gcp.IntegrationTest
 
             AsyncUnaryCall<MutateRowResponse> call = client.MutateRowAsync(mutateRowRequest);
             Assert.AreEqual(1, invoker.channelRefs.Count);
-            Assert.AreEqual(1, invoker.channelRefs[0].ActiveStreamRef);
+            Assert.AreEqual(1, invoker.channelRefs[0].ActiveStreamCount);
             MutateRowResponse response = call.ResponseAsync.Result;
-            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
+            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamCount);
         }
 
         [TestMethod]
@@ -119,15 +115,15 @@ namespace Grpc.Gcp.IntegrationTest
         {
             ReadRowsRequest readRowsRequest = new ReadRowsRequest
             {
-                TableName = TABLE,
+                TableName = TableName,
                 Rows = new RowSet
                 {
-                    RowKeys = { ByteString.CopyFromUtf8(ROW_KEY) }
+                    RowKeys = { ByteString.CopyFromUtf8(RowKey) }
                 }
             };
             var streamingCall = client.ReadRows(readRowsRequest);
             Assert.AreEqual(1, invoker.channelRefs.Count);
-            Assert.AreEqual(1, invoker.channelRefs[0].ActiveStreamRef);
+            Assert.AreEqual(1, invoker.channelRefs[0].ActiveStreamCount);
 
             CancellationTokenSource tokenSource = new CancellationTokenSource();
             CancellationToken token = tokenSource.Token;
@@ -139,7 +135,7 @@ namespace Grpc.Gcp.IntegrationTest
             }
             Assert.AreEqual("test-value", firstResponse.Chunks[0].Value.ToStringUtf8());
             Assert.AreEqual(1, invoker.channelRefs.Count);
-            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
+            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamCount);
         }
 
         [TestMethod]
@@ -157,14 +153,14 @@ namespace Grpc.Gcp.IntegrationTest
                 var streamingCall = client.ReadRows(
                     new ReadRowsRequest
                     {
-                        TableName = TABLE,
+                        TableName = TableName,
                         Rows = new RowSet
                         {
-                            RowKeys = { ByteString.CopyFromUtf8(ROW_KEY) }
+                            RowKeys = { ByteString.CopyFromUtf8(RowKey) }
                         }
                     });
                 Assert.AreEqual(1, invoker.channelRefs.Count);
-                Assert.AreEqual(i + 1, invoker.channelRefs[0].ActiveStreamRef);
+                Assert.AreEqual(i + 1, invoker.channelRefs[0].ActiveStreamCount);
                 calls.Add(streamingCall);
             }
 
@@ -173,15 +169,15 @@ namespace Grpc.Gcp.IntegrationTest
             var anotherStreamingCall = client.ReadRows(
                 new ReadRowsRequest
                 {
-                    TableName = TABLE,
+                    TableName = TableName,
                     Rows = new RowSet
                     {
-                        RowKeys = { ByteString.CopyFromUtf8(ROW_KEY) }
+                        RowKeys = { ByteString.CopyFromUtf8(RowKey) }
                     }
                 });
             Assert.AreEqual(2, invoker.channelRefs.Count);
-            Assert.AreEqual(lowWatermark, invoker.channelRefs[0].ActiveStreamRef);
-            Assert.AreEqual(1, invoker.channelRefs[1].ActiveStreamRef);
+            Assert.AreEqual(lowWatermark, invoker.channelRefs[0].ActiveStreamCount);
+            Assert.AreEqual(1, invoker.channelRefs[1].ActiveStreamCount);
             calls.Add(anotherStreamingCall);
 
             // Clean open streams.
@@ -193,8 +189,8 @@ namespace Grpc.Gcp.IntegrationTest
                 while (responseStream.MoveNext(token).Result) { };
             }
             Assert.AreEqual(2, invoker.channelRefs.Count);
-            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamRef);
-            Assert.AreEqual(0, invoker.channelRefs[1].ActiveStreamRef);
+            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamCount);
+            Assert.AreEqual(0, invoker.channelRefs[1].ActiveStreamCount);
         }
 
         [TestMethod]
@@ -202,15 +198,15 @@ namespace Grpc.Gcp.IntegrationTest
         {
             var calls = new List<AsyncServerStreamingCall<ReadRowsResponse>>();
 
-            for (int i = 0; i < DEFAULT_MAX_CHANNELS_PER_TARGET; i++)
+            for (int i = 0; i < DefaultMaxChannelsPerTarget; i++)
             {
                 var streamingCall = client.ReadRows(
                     new ReadRowsRequest
                     {
-                        TableName = TABLE,
+                        TableName = TableName,
                         Rows = new RowSet
                         {
-                            RowKeys = { ByteString.CopyFromUtf8(ROW_KEY) }
+                            RowKeys = { ByteString.CopyFromUtf8(RowKey) }
                         }
                     });
                 Assert.AreEqual(i + 1, invoker.channelRefs.Count);
@@ -219,18 +215,18 @@ namespace Grpc.Gcp.IntegrationTest
 
             // When number of channels reaches the max, old channels will be reused,
             // even when the number of active streams is higher than the watermark.
-            for (int i = 0; i < DEFAULT_MAX_CHANNELS_PER_TARGET; i++)
+            for (int i = 0; i < DefaultMaxChannelsPerTarget; i++)
             {
                 var streamingCall = client.ReadRows(
                     new ReadRowsRequest
                     {
-                        TableName = TABLE,
+                        TableName = TableName,
                         Rows = new RowSet
                         {
-                            RowKeys = { ByteString.CopyFromUtf8(ROW_KEY) }
+                            RowKeys = { ByteString.CopyFromUtf8(RowKey) }
                         }
                     });
-                Assert.AreEqual(DEFAULT_MAX_CHANNELS_PER_TARGET, invoker.channelRefs.Count);
+                Assert.AreEqual(DefaultMaxChannelsPerTarget, invoker.channelRefs.Count);
                 calls.Add(streamingCall);
             }
 
@@ -242,7 +238,7 @@ namespace Grpc.Gcp.IntegrationTest
                 var responseStream = calls[i].ResponseStream;
                 while (responseStream.MoveNext(token).Result) { };
             }
-            Assert.AreEqual(DEFAULT_MAX_CHANNELS_PER_TARGET, invoker.channelRefs.Count);
+            Assert.AreEqual(DefaultMaxChannelsPerTarget, invoker.channelRefs.Count);
 
             var channelRefs = invoker.channelRefs;
             for (int i = 0; i < channelRefs.Count; i++)
