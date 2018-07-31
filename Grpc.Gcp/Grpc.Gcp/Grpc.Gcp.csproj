@@ -1,5 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
+  <Import Project="..\Common.csproj.include" />
+
   <PropertyGroup>
     <TargetFrameworks>net45;netstandard1.5</TargetFrameworks>
   </PropertyGroup>
