@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="..\Common.csproj.include" />
+
+  <PropertyGroup>
+    <TargetFrameworks>net45;netstandard1.5</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(OS)' != 'Windows_NT' ">netstandard1.5</TargetFrameworks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" Version="3.6.0" />
+    <PackageReference Include="Grpc" Version="1.13.1" />
+    <PackageReference Include="Grpc.Tools" Version="1.13.1" />
+  </ItemGroup>
+
+</Project>
