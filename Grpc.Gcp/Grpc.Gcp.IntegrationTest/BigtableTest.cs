@@ -124,6 +124,7 @@ namespace Grpc.Gcp.IntegrationTest
             var streamingCall = client.ReadRows(readRowsRequest);
             Assert.AreEqual(1, invoker.channelRefs.Count);
             Assert.AreEqual(1, invoker.channelRefs[0].ActiveStreamCount);
+            Assert.ThrowsException<System.InvalidOperationException>(() => streamingCall.GetStatus());
 
             CancellationTokenSource tokenSource = new CancellationTokenSource();
             CancellationToken token = tokenSource.Token;
@@ -136,6 +137,7 @@ namespace Grpc.Gcp.IntegrationTest
             Assert.AreEqual("test-value", firstResponse.Chunks[0].Value.ToStringUtf8());
             Assert.AreEqual(1, invoker.channelRefs.Count);
             Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamCount);
+            Assert.AreEqual(StatusCode.OK, streamingCall.GetStatus().StatusCode);
         }
 
         [TestMethod]
@@ -257,6 +259,5 @@ namespace Grpc.Gcp.IntegrationTest
                 Assert.AreEqual(ChannelState.Shutdown, channel.State);
             }
         }
-
     }
 }
