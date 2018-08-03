@@ -1,52 +1,38 @@
-gRPC Firestore Example (C#)
-===========================
+# gRPC for GCP extensions (C#)
 
-This is an example of utilizing Cloud Firestore using gRPC in C#. 
+Copyright 2018
+[The gRPC Authors](https://github.com/grpc/grpc/blob/master/AUTHORS)
 
-BACKGROUND
--------------
-For this sample, it is assumed the C# code for access to Firestore from the gRPC proto files has already been done. 
+## About This Repository
 
-PREREQUISITES
--------------
+This repo is created to support GCP specific extensions for gRPC. To use the extension features, please refer to [grpcio-gcp](src).
 
-- Mac OS X: Visual Studio for Mac Community 
+This repo also contains supporting infrastructures such as end2end tests and benchmarks for accessing cloud APIs with gRPC client libraries.
 
-BUILD
--------
+## Testing
 
-Download the source files from github.
+### Authentication
 
-# Using Visual Studio
+Integration tests requires Google Cloud Platform credentials. See [Getting
+Started With
+Authentication](https://cloud.google.com/docs/authentication/getting-started).
 
-* Create a project
-* Add the source files
-* Add the C# generated files from the gRPC Firestore proto files
-* Add the following packages:
-  - Google.Apis
-  - Google.Apis.Auth
-  - Google.Apis.Core
-  - Google.Apis.Storage.v1
-  - Google.Cloud.Datastore.V1
-  - Google.Cloud.DevTools.Common
-  - Google.Cloud.Storage.V1
-  - Google.LongRunning
-  - Google.Protobuf
-  - Grpc
-  - Grpc.Auth
-  - Grpc.Core
-  - Grpc.Tools
-
-* Build the project
-
-Try it!
--------
-
-* Add the environment varable GOOGLE_APPLICATION_CREDENTIALS to the Project options pointing to your Application Default Credentials (ADC) file generated from the GCP Console.  
-More info is here: https://cloud.google.com/docs/authentication/getting-started
-
-* Run the application from the Visual Studio IDE or from the command line with:
+```sh
+$ export GOOGLE_APPLICATION_CREDENTIALS=path/to/key.json
 ```
-export GOOGLE_APPLICATION_CREDENTIALS="<location of donladed json file>"
-mono <project location>/bin/Debug/<project name>.exe
+
+### Run Tests
+
+Grpc.Gcp.IntegrationTest can be built for .NET Core or .NET Framework.
+
+If using Visual Studio 2017, open Grpc.Gcp.sln, and the tests will be loaded automatically under test explorer.
+
+For UNIX, use [dotnet
+cli](https://docs.microsoft.com/en-us/dotnet/core/tools/?tabs=netcore2x) to
+build and run tests.
+
+```sh
+$ cd Grpc.Gcp/Grpc.Gcp.IntegrationTest
+$ dotnet build
+$ dotnet test
 ```
