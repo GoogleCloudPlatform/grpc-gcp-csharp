@@ -6,6 +6,7 @@ using Google.Cloud.Bigtable.V2;
 using Google.Protobuf;
 using Grpc.Auth;
 using Grpc.Core;
+using Microsoft.Extensions.CommandLineUtils;
 
 namespace Grpc.Gcp.Benchmark
 {
@@ -19,11 +20,23 @@ namespace Grpc.Gcp.Benchmark
         private const string ColumnQualifier = "test-cq";
         private const Int32 DefaultMaxChannelsPerTarget = 10;
         private ApiConfig config = new ApiConfig();
-        //private GcpCallInvoker invoker;
         private Bigtable.BigtableClient client;
+        private int numStreamCalls;
+        private bool useGcp;
+
+        public BigtableBenchmark(int numStreamCalls, bool gcp) {
+            this.numStreamCalls = numStreamCalls;
+            this.useGcp = gcp;
+            if (gcp) {
+                InitGcpClient();
+            } else {
+                InitDefaultClient();
+            }
+        }
 
         private void InitGcpClient()
         {
+            InitApiConfig(100, 10);
             GoogleCredential credential = GoogleCredential.GetApplicationDefault();
             IList<ChannelOption> options = new List<ChannelOption>() {
                 new ChannelOption(GcpCallInvoker.API_CONFIG_CHANNEL_ARG, config.ToString()) };
@@ -71,12 +84,13 @@ namespace Grpc.Gcp.Benchmark
 
         public void RunMaxConcurrentStreams()
         {
-            InitDefaultClient();
+            // InitDefaultClient();
             PrepareTestData();
+            // int numCalls = 100;
 
             var calls = new List<AsyncServerStreamingCall<ReadRowsResponse>>();
 
-            for (int i = 0; i < 100; i++)
+            for (int i = 0; i < numStreamCalls; i++)
             {
                 var streamingCall = client.ReadRows(
                     new ReadRowsRequest
@@ -89,10 +103,12 @@ namespace Grpc.Gcp.Benchmark
                     });
                 calls.Add(streamingCall);
             }
+            Console.WriteLine(String.Format("Created {0} streaming calls.", numStreamCalls));
 
             CancellationTokenSource tokenSource = new CancellationTokenSource();
             CancellationToken token = tokenSource.Token;
 
+            Console.WriteLine("Starting UnaryUnary blocking call..");
             var watch = System.Diagnostics.Stopwatch.StartNew();
             MutateRowRequest mutateRowRequest = new MutateRowRequest
             {
@@ -112,27 +128,13 @@ namespace Grpc.Gcp.Benchmark
 
             mutateRowRequest.Mutations.Add(mutation);
 
-            client.MutateRow(mutateRowRequest);
+            // Set 5 sec time out for the blocking call.
+            client.MutateRow(mutateRowRequest, null, DateTime.UtcNow.AddSeconds(5));
 
             watch.Stop();
             var elapsedMs = watch.ElapsedMilliseconds;
             Console.WriteLine("Elapsed time for another call (ms): " + elapsedMs);
 
-            //for (int i = 0; i < calls.Count; i++)
-            //{
-            //    var rsp = calls[i].ResponseStream;
-            //    while (rsp.MoveNext(token).Result)
-            //    {
-            //        ReadRowsResponse readRowsResponse = rsp.Current;
-            //        var chunks = readRowsResponse.Chunks;
-            //    }
-            //}
-        }
-
-        static void Main(string[] args)
-        {
-            BigtableBenchmark benchmark = new BigtableBenchmark();
-            benchmark.RunMaxConcurrentStreams();
         }
     }
 }
