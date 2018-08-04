@@ -20,7 +20,7 @@ namespace Grpc.Gcp.IntegrationTest
         private const string ColumnFamily = "test-cf";
         private const string ColumnQualifier = "test-cq";
         private const Int32 DefaultMaxChannelsPerTarget = 10;
-        private ApiConfig config = new ApiConfig();
+        private ApiConfig config;
         private GcpCallInvoker invoker;
         private Bigtable.BigtableClient client;
 
@@ -42,20 +42,16 @@ namespace Grpc.Gcp.IntegrationTest
 
         private void InitApiConfig(uint maxConcurrentStreams, uint maxSize)
         {
-            config.ChannelPool = new ChannelPoolConfig();
-            config.ChannelPool.MaxConcurrentStreamsLowWatermark = maxConcurrentStreams;
-            config.ChannelPool.MaxSize = maxSize;
+            config = new ApiConfig
+            {
+                ChannelPool = new ChannelPoolConfig
+                {
+                    MaxConcurrentStreamsLowWatermark = maxConcurrentStreams,
+                    MaxSize = maxSize,
+                }
+            };
         }
 
-        private void AddMethod(ApiConfig config, string name, AffinityConfig.Types.Command command, string affinityKey)
-        {
-            MethodConfig method = new MethodConfig();
-            method.Name.Add(name);
-            method.Affinity = new AffinityConfig();
-            method.Affinity.Command = command;
-            method.Affinity.AffinityKey = affinityKey;
-            config.Method.Add(method);
-        }
 
         [TestMethod]
         public void MutateRow()

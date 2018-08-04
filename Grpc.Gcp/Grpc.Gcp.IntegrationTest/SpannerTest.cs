@@ -7,6 +7,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using Google.Protobuf;
+using System.IO;
+using Microsoft.Extensions.PlatformAbstractions;
+using System.Reflection;
 
 namespace Grpc.Gcp.IntegrationTest
 {
@@ -26,7 +30,8 @@ namespace Grpc.Gcp.IntegrationTest
         [TestInitialize]
         public void SetUp()
         {
-            InitApiConfig(1, 10);
+            //InitApiConfig(1, 10);
+            InitApiConfigFromFile();
             InitClient();
         }
 
@@ -37,6 +42,13 @@ namespace Grpc.Gcp.IntegrationTest
                 new ChannelOption(GcpCallInvoker.API_CONFIG_CHANNEL_ARG, config.ToString()) };
             invoker = new GcpCallInvoker(Target, credential.ToChannelCredentials(), options);
             client = new Spanner.SpannerClient(invoker);
+        }
+
+        private void InitApiConfigFromFile()
+        {
+            var paresr = ApiConfig.Parser;
+            string text = System.IO.File.ReadAllText(@"spanner.grpc.config");
+            config = paresr.ParseJson(text);
         }
 
         private void InitApiConfig(int maxConcurrentStreams, int maxSize)
