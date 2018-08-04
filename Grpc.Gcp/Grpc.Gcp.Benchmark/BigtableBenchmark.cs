@@ -18,6 +18,8 @@ namespace Grpc.Gcp.Benchmark
         private const string TestValue = "test-value";
         private const string ColumnFamily = "test-cf";
         private const string ColumnQualifier = "test-cq";
+        private const string LargeRowKey = "large-row";
+        private const Int32 PayloadBytes = 10000000;
         private const Int32 DefaultMaxChannelsPerTarget = 10;
         private ApiConfig config = new ApiConfig();
         private Bigtable.BigtableClient client;
@@ -63,10 +65,10 @@ namespace Grpc.Gcp.Benchmark
             MutateRowRequest mutateRowRequest = new MutateRowRequest
             {
                 TableName = TableName,
-                RowKey = ByteString.CopyFromUtf8("large-row")
+                RowKey = ByteString.CopyFromUtf8(LargeRowKey)
             };
 
-            string largeValue = new string('x', 10000000);
+            string largeValue = new string('x', PayloadBytes);
 
             Mutation mutation = new Mutation
             {
@@ -84,9 +86,7 @@ namespace Grpc.Gcp.Benchmark
 
         public void RunMaxConcurrentStreams()
         {
-            // InitDefaultClient();
             PrepareTestData();
-            // int numCalls = 100;
 
             var calls = new List<AsyncServerStreamingCall<ReadRowsResponse>>();
 
