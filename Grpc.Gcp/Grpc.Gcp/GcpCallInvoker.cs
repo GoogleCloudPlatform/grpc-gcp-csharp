@@ -74,8 +74,7 @@ namespace Grpc.Gcp
                 if (!string.IsNullOrEmpty(affinityKey))
                 {
                     // Finds the gRPC channel according to the affinity key.
-                    ChannelRef channelRef;
-                    if (channelRefByAffinityKey.TryGetValue(affinityKey, out channelRef))
+                    if (channelRefByAffinityKey.TryGetValue(affinityKey, out ChannelRef channelRef))
                     {
                         return channelRef;
                     }
@@ -155,8 +154,7 @@ namespace Grpc.Gcp
         {
             lock (thisLock)
             {
-                ChannelRef channelRef = null;
-                if (channelRefByAffinityKey.TryGetValue(affinityKey, out channelRef))
+                if (channelRefByAffinityKey.TryGetValue(affinityKey, out ChannelRef channelRef))
                 {
                     channelRef.AffinityCountDecr();
                     channelRefByAffinityKey.Remove(affinityKey);
@@ -212,11 +210,11 @@ namespace Grpc.Gcp
             var callDetails = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
             var originalCall = Calls.AsyncClientStreamingCall(callDetails);
 
-            Func<TResponse, TResponse> callback = (resp) =>
+            TResponse callback(TResponse resp)
             {
                 channelRef.ActiveStreamCountDecr();
                 return resp;
-            };
+            }
 
             // Decrease the active streams count once async response finishes.
             var gcpResponseAsync = originalCall.ResponseAsync
@@ -245,12 +243,6 @@ namespace Grpc.Gcp
             var callDetails = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
             var originalCall = Calls.AsyncDuplexStreamingCall(callDetails);
 
-            Func<TResponse, TResponse> callback = (resp) =>
-            {
-                channelRef.ActiveStreamCountDecr();
-                return resp;
-            };
-
             // Decrease the active streams count once the streaming response finishes its final batch.
             var gcpResponseStream = new GcpClientResponseStream<TRequest, TResponse>(
                 originalCall.ResponseStream,
@@ -273,8 +265,7 @@ namespace Grpc.Gcp
         public override AsyncServerStreamingCall<TResponse>
             AsyncServerStreamingCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string host, CallOptions options, TRequest request)
         {
-            AffinityConfig affinityConfig;
-            affinityByMethod.TryGetValue(method.FullName, out affinityConfig);
+            affinityByMethod.TryGetValue(method.FullName, out AffinityConfig affinityConfig);
 
             Tuple<ChannelRef, string> tupleResult = PreProcess(affinityConfig, request);
             ChannelRef channelRef = tupleResult.Item1;
@@ -304,8 +295,7 @@ namespace Grpc.Gcp
         public override AsyncUnaryCall<TResponse>
             AsyncUnaryCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string host, CallOptions options, TRequest request)
         {
-            AffinityConfig affinityConfig;
-            affinityByMethod.TryGetValue(method.FullName, out affinityConfig);
+            affinityByMethod.TryGetValue(method.FullName, out AffinityConfig affinityConfig);
 
             Tuple<ChannelRef, string> tupleResult = PreProcess(affinityConfig, request);
             ChannelRef channelRef = tupleResult.Item1;
@@ -314,11 +304,11 @@ namespace Grpc.Gcp
             var callDetails = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
             var originalCall = Calls.AsyncUnaryCall(callDetails, request);
 
-            Func<TResponse, TResponse> callback = (resp) =>
+            TResponse callback(TResponse resp)
             {
                 PostProcess(affinityConfig, channelRef, boundKey, resp);
                 return resp;
-            };
+            }
 
             // Executes affinity postprocess once the async response finishes.
             var gcpResponseAsync = originalCall.ResponseAsync
@@ -340,8 +330,7 @@ namespace Grpc.Gcp
         public override TResponse
             BlockingUnaryCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string host, CallOptions options, TRequest request)
         {
-            AffinityConfig affinityConfig;
-            affinityByMethod.TryGetValue(method.FullName, out affinityConfig);
+            affinityByMethod.TryGetValue(method.FullName, out AffinityConfig affinityConfig);
 
             Tuple<ChannelRef, string> tupleResult = PreProcess(affinityConfig, request);
             ChannelRef channelRef = tupleResult.Item1;

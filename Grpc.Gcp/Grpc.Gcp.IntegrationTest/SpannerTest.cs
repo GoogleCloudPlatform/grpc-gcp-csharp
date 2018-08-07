@@ -1,5 +1,6 @@
 ﻿using Google.Apis.Auth.OAuth2;
 using Google.Cloud.Spanner.V1;
+using Google.Protobuf;
 using Grpc.Auth;
 using Grpc.Core;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -7,10 +8,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using Google.Protobuf;
-using System.IO;
-using Microsoft.Extensions.PlatformAbstractions;
-using System.Reflection;
 
 namespace Grpc.Gcp.IntegrationTest
 {
@@ -46,16 +43,18 @@ namespace Grpc.Gcp.IntegrationTest
 
         private void InitApiConfigFromFile()
         {
-            var paresr = ApiConfig.Parser;
+            MessageParser<ApiConfig> parser = ApiConfig.Parser;
             string text = System.IO.File.ReadAllText(@"spanner.grpc.config");
-            config = paresr.ParseJson(text);
+            config = parser.ParseJson(text);
         }
 
         private void InitApiConfig(int maxConcurrentStreams, int maxSize)
         {
-            config.ChannelPool = new ChannelPoolConfig();
-            config.ChannelPool.MaxConcurrentStreamsLowWatermark = (uint) maxConcurrentStreams;
-            config.ChannelPool.MaxSize = (uint) maxSize;
+            config.ChannelPool = new ChannelPoolConfig
+            {
+                MaxConcurrentStreamsLowWatermark = (uint)maxConcurrentStreams,
+                MaxSize = (uint)maxSize
+            };
             AddMethod(config, "/google.spanner.v1.Spanner/CreateSession", AffinityConfig.Types.Command.Bind, "name");
             AddMethod(config, "/google.spanner.v1.Spanner/GetSession", AffinityConfig.Types.Command.Bound, "name");
             AddMethod(config, "/google.spanner.v1.Spanner/DeleteSession", AffinityConfig.Types.Command.Unbind, "name");
@@ -74,9 +73,11 @@ namespace Grpc.Gcp.IntegrationTest
         {
             MethodConfig method = new MethodConfig();
             method.Name.Add(name);
-            method.Affinity = new AffinityConfig();
-            method.Affinity.Command = command;
-            method.Affinity.AffinityKey = affinityKey;
+            method.Affinity = new AffinityConfig
+            {
+                Command = command,
+                AffinityKey = affinityKey
+            };
             config.Method.Add(method);
         }
 
@@ -135,8 +136,10 @@ namespace Grpc.Gcp.IntegrationTest
         {
             Session session;
             {
-                CreateSessionRequest request = new CreateSessionRequest();
-                request.Database = DatabaseUrl;
+                CreateSessionRequest request = new CreateSessionRequest
+                {
+                    Database = DatabaseUrl
+                };
                 session = client.CreateSession(request);
                 Assert.IsNotNull(session);
                 Assert.AreEqual(1, invoker.channelRefs.Count);
@@ -145,8 +148,10 @@ namespace Grpc.Gcp.IntegrationTest
             }
 
             {
-                ListSessionsRequest request = new ListSessionsRequest();
-                request.Database = DatabaseUrl;
+                ListSessionsRequest request = new ListSessionsRequest
+                {
+                    Database = DatabaseUrl
+                };
                 ListSessionsResponse response = client.ListSessions(request);
                 Assert.IsNotNull(response);
                 Assert.IsNotNull(response.Sessions);
@@ -157,8 +162,10 @@ namespace Grpc.Gcp.IntegrationTest
             }
 
             {
-                DeleteSessionRequest request = new DeleteSessionRequest();
-                request.Name = session.Name;
+                DeleteSessionRequest request = new DeleteSessionRequest
+                {
+                    Name = session.Name
+                };
                 client.DeleteSession(request);
                 Assert.AreEqual(1, invoker.channelRefs.Count);
                 Assert.AreEqual(0, invoker.channelRefs[0].AffinityCount);
@@ -166,8 +173,10 @@ namespace Grpc.Gcp.IntegrationTest
             }
 
             {
-                ListSessionsRequest request = new ListSessionsRequest();
-                request.Database = DatabaseUrl;
+                ListSessionsRequest request = new ListSessionsRequest
+                {
+                    Database = DatabaseUrl
+                };
                 ListSessionsResponse response = client.ListSessions(request);
                 Assert.IsNotNull(response);
                 Assert.IsNotNull(response.Sessions);
@@ -183,8 +192,10 @@ namespace Grpc.Gcp.IntegrationTest
         {
             Session session;
             {
-                CreateSessionRequest request = new CreateSessionRequest();
-                request.Database = DatabaseUrl;
+                CreateSessionRequest request = new CreateSessionRequest
+                {
+                    Database = DatabaseUrl
+                };
                 session = client.CreateSession(request);
                 Assert.IsNotNull(session);
                 Assert.AreEqual(1, invoker.channelRefs.Count);
@@ -192,9 +203,11 @@ namespace Grpc.Gcp.IntegrationTest
                 Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamCount);
             }
             {
-                ExecuteSqlRequest request = new ExecuteSqlRequest();
-                request.Session = session.Name;
-                request.Sql = string.Format("select id, data from {0}", TableName);
+                ExecuteSqlRequest request = new ExecuteSqlRequest
+                {
+                    Session = session.Name,
+                    Sql = string.Format("select id, data from {0}", TableName)
+                };
                 ResultSet resultSet = client.ExecuteSql(request);
                 Assert.AreEqual(1, invoker.channelRefs.Count);
                 Assert.AreEqual(1, invoker.channelRefs[0].AffinityCount);
@@ -204,8 +217,10 @@ namespace Grpc.Gcp.IntegrationTest
                 Assert.AreEqual(ColumnId, resultSet.Rows[0].Values[0].StringValue);
             }
             {
-                DeleteSessionRequest request = new DeleteSessionRequest();
-                request.Name = session.Name;
+                DeleteSessionRequest request = new DeleteSessionRequest
+                {
+                    Name = session.Name
+                };
                 client.DeleteSession(request);
                 Assert.AreEqual(1, invoker.channelRefs.Count);
                 Assert.AreEqual(0, invoker.channelRefs[0].AffinityCount);
@@ -296,27 +311,35 @@ namespace Grpc.Gcp.IntegrationTest
         [TestMethod]
         public void BoundUnbindInvalidAffinityKey()
         {
-            GetSessionRequest getSessionRequest = new GetSessionRequest();
-            getSessionRequest.Name = "random_name";
+            GetSessionRequest getSessionRequest = new GetSessionRequest
+            {
+                Name = "random_name"
+            };
             Assert.ThrowsException<Grpc.Core.RpcException>(() => client.GetSession(getSessionRequest));
 
-            DeleteSessionRequest deleteSessionRequest = new DeleteSessionRequest();
-            deleteSessionRequest.Name = "random_name";
-            
+            DeleteSessionRequest deleteSessionRequest = new DeleteSessionRequest
+            {
+                Name = "random_name"
+            };
+
             Assert.ThrowsException<Grpc.Core.RpcException>(() => client.DeleteSession(deleteSessionRequest));
         }
 
         [TestMethod]
         public void BoundAfterUnbind()
         {
-            CreateSessionRequest request = new CreateSessionRequest();
-            request.Database = DatabaseUrl;
+            CreateSessionRequest request = new CreateSessionRequest
+            {
+                Database = DatabaseUrl
+            };
             Session session = client.CreateSession(request);
 
             Assert.AreEqual(1, invoker.channelRefByAffinityKey.Count);
 
-            DeleteSessionRequest deleteSessionRequest = new DeleteSessionRequest();
-            deleteSessionRequest.Name = session.Name;
+            DeleteSessionRequest deleteSessionRequest = new DeleteSessionRequest
+            {
+                Name = session.Name
+            };
             client.DeleteSession(deleteSessionRequest);
 
             Assert.AreEqual(0, invoker.channelRefByAffinityKey.Count);

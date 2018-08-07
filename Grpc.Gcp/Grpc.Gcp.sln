@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Grpc.Gcp", "Grpc.Gcp\Grpc.G
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Grpc.Gcp.IntegrationTest", "Grpc.Gcp.IntegrationTest\Grpc.Gcp.IntegrationTest.csproj", "{54006751-6500-4E42-BF57-CD7058A2D868}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Grpc.Gcp.Benchmark", "Grpc.Gcp.Benchmark\Grpc.Gcp.Benchmark.csproj", "{45762CDD-3C44-440A-B359-DE950AD6BE96}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Grpc.Gcp.Benchmark", "Grpc.Gcp.Benchmark\Grpc.Gcp.Benchmark.csproj", "{45762CDD-3C44-440A-B359-DE950AD6BE96}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
