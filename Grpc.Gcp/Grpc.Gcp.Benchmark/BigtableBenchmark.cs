@@ -41,7 +41,7 @@ namespace Grpc.Gcp.Benchmark
             InitApiConfig(100, 10);
             GoogleCredential credential = GoogleCredential.GetApplicationDefault();
             IList<ChannelOption> options = new List<ChannelOption>() {
-                new ChannelOption(GcpCallInvoker.API_CONFIG_CHANNEL_ARG, config.ToString()) };
+                new ChannelOption(GcpCallInvoker.ApiConfigChannelArg, config.ToString()) };
             var invoker = new GcpCallInvoker(Target, credential.ToChannelCredentials(), options);
             client = new Bigtable.BigtableClient(invoker);
         }

@@ -36,7 +36,7 @@ namespace Grpc.Gcp.IntegrationTest
         {
             GoogleCredential credential = GoogleCredential.GetApplicationDefault();
             IList<ChannelOption> options = new List<ChannelOption>() {
-                new ChannelOption(GcpCallInvoker.API_CONFIG_CHANNEL_ARG, config.ToString()) };
+                new ChannelOption(GcpCallInvoker.ApiConfigChannelArg, config.ToString()) };
             invoker = new GcpCallInvoker(Target, credential.ToChannelCredentials(), options);
             client = new Spanner.SpannerClient(invoker);
         }

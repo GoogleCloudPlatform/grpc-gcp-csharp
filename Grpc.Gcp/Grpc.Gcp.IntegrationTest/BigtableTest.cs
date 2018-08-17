@@ -35,7 +35,7 @@ namespace Grpc.Gcp.IntegrationTest
         {
             GoogleCredential credential = GoogleCredential.GetApplicationDefault();
             IList<ChannelOption> options = new List<ChannelOption>() {
-                new ChannelOption(GcpCallInvoker.API_CONFIG_CHANNEL_ARG, config.ToString()) };
+                new ChannelOption(GcpCallInvoker.ApiConfigChannelArg, config.ToString()) };
             invoker = new GcpCallInvoker(Target, credential.ToChannelCredentials(), options);
             client = new Bigtable.BigtableClient(invoker);
         }
@@ -51,7 +51,6 @@ namespace Grpc.Gcp.IntegrationTest
                 }
             };
         }
-
 
         [TestMethod]
         public void MutateRow()
@@ -254,6 +253,35 @@ namespace Grpc.Gcp.IntegrationTest
                 var channel = channelRefs[i].Channel;
                 Assert.AreEqual(ChannelState.Shutdown, channel.State);
             }
+        }
+
+        [TestMethod]
+        public void CreateClientWithEmptyOptions()
+        {
+            GoogleCredential credential = GoogleCredential.GetApplicationDefault();
+            invoker = new GcpCallInvoker(Target, credential.ToChannelCredentials());
+            client = new Bigtable.BigtableClient(invoker);
+
+            MutateRowRequest mutateRowRequest = new MutateRowRequest
+            {
+                TableName = TableName,
+                RowKey = ByteString.CopyFromUtf8(RowKey)
+            };
+
+            Mutation mutation = new Mutation
+            {
+                SetCell = new Mutation.Types.SetCell
+                {
+                    FamilyName = ColumnFamily,
+                    ColumnQualifier = ByteString.CopyFromUtf8(ColumnQualifier),
+                    Value = ByteString.CopyFromUtf8(TestValue),
+                }
+            };
+
+            mutateRowRequest.Mutations.Add(mutation);
+
+            client.MutateRow(mutateRowRequest);
+            Assert.AreEqual(1, invoker.channelRefs.Count);
         }
     }
 }
