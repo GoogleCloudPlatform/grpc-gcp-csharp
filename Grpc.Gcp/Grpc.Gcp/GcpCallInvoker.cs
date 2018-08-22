@@ -21,43 +21,53 @@ namespace Grpc.Gcp
         private const string ClientChannelId = "grpc_gcp.client_channel.id";
         private const Int32 DefaultChannelPoolSize = 10;
         private const Int32 DefaultMaxCurrentStreams = 100;
-        private Object thisLock = new Object();
+        private readonly Object thisLock = new Object();
         private readonly string target;
         private readonly ApiConfig apiConfig;
         private readonly IDictionary<string, AffinityConfig> affinityByMethod;
         private readonly ChannelCredentials credentials;
         private readonly IEnumerable<ChannelOption> options;
 
-        public GcpCallInvoker(string target, ChannelCredentials credentials, IEnumerable<ChannelOption> options)
+        public GcpCallInvoker(string target, ChannelCredentials credentials, IEnumerable<ChannelOption> options = null)
         {
             this.target = target;
             this.credentials = credentials;
             this.apiConfig = InitDefaultApiConfig();
-            this.affinityByMethod = new Dictionary<string, AffinityConfig>();
 
             if (options != null)
             {
                 ChannelOption option = options.FirstOrDefault(opt => opt.Name == ApiConfigChannelArg);
                 if (option != null)
                 {
-                    apiConfig = ApiConfig.Parser.ParseJson(option.StringValue);
-                    affinityByMethod = InitAffinityByMethodIndex(apiConfig);
+                    try
+                    {
+                        apiConfig = ApiConfig.Parser.ParseJson(option.StringValue);
+                    }
+                    catch (Exception ex)
+                    {
+                        if (ex is InvalidOperationException || ex is InvalidJsonException || ex is InvalidProtocolBufferException)
+                        {
+                            throw new ArgumentException("Invalid API config!");
+                        }
+                        throw;
+                    }
                 }
-                this.options = options.Where(o => o.Name != ApiConfigChannelArg).AsEnumerable<ChannelOption>();
+                this.options = options.Where(o => o.Name != ApiConfigChannelArg).ToList();
             }
+            else
+            {
+                this.options = Enumerable.Empty<ChannelOption>();
+            }
+
+            affinityByMethod = InitAffinityByMethodIndex(apiConfig);
         }
 
-        public GcpCallInvoker(string target, ChannelCredentials credentials) : this(target, credentials, null) { }
-
-        public GcpCallInvoker(string host, int port, ChannelCredentials credentials) : this(host, port, credentials, null) { }
-
-        public GcpCallInvoker(string host, int port, ChannelCredentials credentials, IEnumerable<ChannelOption> options) :
-            this(string.Format("{0}:{1}", host, port), credentials, options)
+        public GcpCallInvoker(string host, int port, ChannelCredentials credentials, IEnumerable<ChannelOption> options = null) :
+            this($"{host}:{port}", credentials, options)
         { }
 
-        private ApiConfig InitDefaultApiConfig()
-        {
-            return new ApiConfig
+        private ApiConfig InitDefaultApiConfig() =>
+            new ApiConfig
             {
                 ChannelPool = new ChannelPoolConfig
                 {
@@ -65,7 +75,6 @@ namespace Grpc.Gcp
                     MaxSize = (uint)DefaultChannelPoolSize
                 }
             };
-        }
 
         private IDictionary<string, AffinityConfig> InitAffinityByMethodIndex(ApiConfig config)
         {

@@ -28,6 +28,7 @@
     -->
   <PropertyGroup Condition="'$(OS)' != 'Windows_NT'">
     <TargetFrameworks>netstandard1.5</TargetFrameworks>
+    <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>
   </PropertyGroup>
 
   <ItemGroup>
