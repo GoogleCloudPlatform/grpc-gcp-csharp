@@ -47,7 +47,7 @@ namespace Grpc.Gcp
                     {
                         if (ex is InvalidOperationException || ex is InvalidJsonException || ex is InvalidProtocolBufferException)
                         {
-                            throw new ArgumentException("Invalid API config!");
+                            throw new ArgumentException("Invalid API config!", ex);
                         }
                         throw;
                     }
@@ -129,7 +129,7 @@ namespace Grpc.Gcp
                 {
                     // Creates a new gRPC channel.
                     Channel channel = new Channel(target, credentials,
-                        options?.Concat(new[] { new ChannelOption(ClientChannelId, count) }));
+                        options.Concat(new[] { new ChannelOption(ClientChannelId, count) }));
                     ChannelRef channelRef = new ChannelRef(channel, count);
                     channelRefs.Add(channelRef);
                     return channelRef;
