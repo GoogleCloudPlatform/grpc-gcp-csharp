@@ -17,7 +17,7 @@
     <RepositoryUrl>https://github.com/GoogleCloudPlatform/grpc-gcp-csharp</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>Google;Cloud;Grpc;GCP</PackageTags>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <PackageReleaseNotes>Initial release with core functionalities.</PackageReleaseNotes>
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>../keys/Grpc.Gcp.snk</AssemblyOriginatorKeyFile>
