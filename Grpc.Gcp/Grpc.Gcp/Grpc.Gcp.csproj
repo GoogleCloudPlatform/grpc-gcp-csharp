@@ -19,6 +19,8 @@
     <PackageTags>Google;Cloud;Grpc;GCP</PackageTags>
     <Version>0.1.0</Version>
     <PackageReleaseNotes>Initial release with core functionalities.</PackageReleaseNotes>
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>../keys/Grpc.Gcp.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
 
   <!--
@@ -26,6 +28,7 @@
     -->
   <PropertyGroup Condition="'$(OS)' != 'Windows_NT'">
     <TargetFrameworks>netstandard1.5</TargetFrameworks>
+    <PublicSign>true</PublicSign>
   </PropertyGroup>
 
   <ItemGroup>

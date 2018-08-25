@@ -13,41 +13,68 @@ namespace Grpc.Gcp
     /// </summary>
     public class GcpCallInvoker : CallInvoker
     {
-        public static readonly string API_CONFIG_CHANNEL_ARG = "grpc_gcp.api_config";
-        private static readonly string CLIENT_CHANNEL_ID = "grpc_gcp.client_channel.id";
-        private readonly ApiConfig config;
-        private readonly IDictionary<string, AffinityConfig> affinityByMethod;
-        private Object thisLock = new Object();
+        public const string ApiConfigChannelArg = "grpc_gcp.api_config";
+
         internal IDictionary<string, ChannelRef> channelRefByAffinityKey = new Dictionary<string, ChannelRef>();
         internal IList<ChannelRef> channelRefs = new List<ChannelRef>();
+
+        private const string ClientChannelId = "grpc_gcp.client_channel.id";
+        private const Int32 DefaultChannelPoolSize = 10;
+        private const Int32 DefaultMaxCurrentStreams = 100;
+        private readonly Object thisLock = new Object();
         private readonly string target;
+        private readonly ApiConfig apiConfig;
+        private readonly IDictionary<string, AffinityConfig> affinityByMethod;
         private readonly ChannelCredentials credentials;
         private readonly IEnumerable<ChannelOption> options;
 
-        public GcpCallInvoker(string target, ChannelCredentials credentials) : this(target, credentials, null) { }
-
-        public GcpCallInvoker(string target, ChannelCredentials credentials, IEnumerable<ChannelOption> options)
+        public GcpCallInvoker(string target, ChannelCredentials credentials, IEnumerable<ChannelOption> options = null)
         {
             this.target = target;
             this.credentials = credentials;
+            this.apiConfig = InitDefaultApiConfig();
 
             if (options != null)
             {
-                ChannelOption option = options.FirstOrDefault(opt => opt.Name == API_CONFIG_CHANNEL_ARG);
+                ChannelOption option = options.FirstOrDefault(opt => opt.Name == ApiConfigChannelArg);
                 if (option != null)
                 {
-                    config = ApiConfig.Parser.ParseJson(option.StringValue);
-                    affinityByMethod = InitAffinityByMethodIndex(config);
+                    try
+                    {
+                        apiConfig = ApiConfig.Parser.ParseJson(option.StringValue);
+                    }
+                    catch (Exception ex)
+                    {
+                        if (ex is InvalidOperationException || ex is InvalidJsonException || ex is InvalidProtocolBufferException)
+                        {
+                            throw new ArgumentException("Invalid API config!", ex);
+                        }
+                        throw;
+                    }
                 }
-                this.options = options.Where(o => o.Name != API_CONFIG_CHANNEL_ARG).AsEnumerable<ChannelOption>();
+                this.options = options.Where(o => o.Name != ApiConfigChannelArg).ToList();
             }
+            else
+            {
+                this.options = Enumerable.Empty<ChannelOption>();
+            }
+
+            affinityByMethod = InitAffinityByMethodIndex(apiConfig);
         }
 
-        public GcpCallInvoker(string host, int port, ChannelCredentials credentials) : this(host, port, credentials, null) { }
-
-        public GcpCallInvoker(string host, int port, ChannelCredentials credentials, IEnumerable<ChannelOption> options) :
-            this(string.Format("{0}:{1}", host, port), credentials, options)
+        public GcpCallInvoker(string host, int port, ChannelCredentials credentials, IEnumerable<ChannelOption> options = null) :
+            this($"{host}:{port}", credentials, options)
         { }
+
+        private ApiConfig InitDefaultApiConfig() =>
+            new ApiConfig
+            {
+                ChannelPool = new ChannelPoolConfig
+                {
+                    MaxConcurrentStreamsLowWatermark = (uint)DefaultMaxCurrentStreams,
+                    MaxSize = (uint)DefaultChannelPoolSize
+                }
+            };
 
         private IDictionary<string, AffinityConfig> InitAffinityByMethodIndex(ApiConfig config)
         {
@@ -86,7 +113,7 @@ namespace Grpc.Gcp
                     channelRefs.OrderBy(channelRef => channelRef.ActiveStreamCount);
                 foreach (ChannelRef channelRef in orderedChannelRefs)
                 {
-                    if (channelRef.ActiveStreamCount < config.ChannelPool.MaxConcurrentStreamsLowWatermark)
+                    if (channelRef.ActiveStreamCount < apiConfig.ChannelPool.MaxConcurrentStreamsLowWatermark)
                     {
                         // If there's a free channel, use it.
                         return channelRef;
@@ -98,11 +125,11 @@ namespace Grpc.Gcp
                     }
                 }
                 int count = channelRefs.Count;
-                if (count < config.ChannelPool.MaxSize)
+                if (count < apiConfig.ChannelPool.MaxSize)
                 {
                     // Creates a new gRPC channel.
                     Channel channel = new Channel(target, credentials,
-                        options.Concat(new[] { new ChannelOption(CLIENT_CHANNEL_ID, count) }));
+                        options.Concat(new[] { new ChannelOption(ClientChannelId, count) }));
                     ChannelRef channelRef = new ChannelRef(channel, count);
                     channelRefs.Add(channelRef);
                     return channelRef;
