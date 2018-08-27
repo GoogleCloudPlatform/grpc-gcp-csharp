@@ -17,8 +17,8 @@
     <RepositoryUrl>https://github.com/GoogleCloudPlatform/grpc-gcp-csharp</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>Google;Cloud;Grpc;GCP</PackageTags>
-    <Version>0.1.1</Version>
-    <PackageReleaseNotes>Initial release with core functionalities.</PackageReleaseNotes>
+    <Version>0.1.2</Version>
+    <PackageReleaseNotes>Publish a new version to support both .NETStandard 1.5 and .NETFramework 4.5.</PackageReleaseNotes>
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>../keys/Grpc.Gcp.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
