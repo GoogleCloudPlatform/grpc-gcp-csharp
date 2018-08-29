@@ -10,7 +10,7 @@ namespace Grpc.Gcp
     /// <summary>
     /// Invokes client RPCs using <see cref="Calls"/>.
     /// Calls are made through underlying gcp channel pool.
-    /// </summary>
+    /// </summary
     public class GcpCallInvoker : CallInvoker
     {
         public const string ApiConfigChannelArg = "grpc_gcp.api_config";
@@ -28,6 +28,12 @@ namespace Grpc.Gcp
         private readonly ChannelCredentials credentials;
         private readonly IEnumerable<ChannelOption> options;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Grpc.Gcp.GcpCallInvoker"/> class.
+        /// </summary>
+        /// <param name="target">Target of the underlying grpc channels.</param>
+        /// <param name="credentials">Credentials to secure the underlying grpc channels.</param>
+        /// <param name="options">Channel options to be used by the underlying grpc channels.</param>
         public GcpCallInvoker(string target, ChannelCredentials credentials, IEnumerable<ChannelOption> options = null)
         {
             this.target = target;
@@ -62,6 +68,13 @@ namespace Grpc.Gcp
             affinityByMethod = InitAffinityByMethodIndex(apiConfig);
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Grpc.Gcp.GcpCallInvoker"/> class.
+        /// </summary>
+        /// <param name="host">Hostname of target.</param>
+        /// <param name="port">Port number of target</param>
+        /// <param name="credentials">Credentials to secure the underlying grpc channels.</param>
+        /// <param name="options">Channel options to be used by the underlying grpc channels.</param>
         public GcpCallInvoker(string host, int port, ChannelCredentials credentials, IEnumerable<ChannelOption> options = null) :
             this($"{host}:{port}", credentials, options)
         { }

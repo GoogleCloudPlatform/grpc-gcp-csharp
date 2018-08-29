@@ -2,6 +2,9 @@
 
 namespace Grpc.Gcp
 {
+    /// <summary>
+    /// Keeps record of channel affinity and active streams.
+    /// </summary>
     internal class ChannelRef
     {
         private int affinityCount;
