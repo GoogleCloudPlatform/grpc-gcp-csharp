@@ -6,19 +6,15 @@
     <TargetFrameworks>net45;netstandard1.5</TargetFrameworks>
     <Company>Google Inc.</Company>
     <Authors>Google Inc.</Authors>
-    <Description>
-      Extension for supporting Google Cloud Platform specific features for gRPC.
-
-      Disclaimer: this package is experimental and is not production ready.
-    </Description>
+    <Description>Extension supporting Google Cloud Platform specific features for gRPC.</Description>
     <Copyright>Copyright 2018, Google Inc.</Copyright>
     <PackageLicenseUrl>https://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/GoogleCloudPlatform/grpc-gcp-csharp</PackageProjectUrl>
     <RepositoryUrl>https://github.com/GoogleCloudPlatform/grpc-gcp-csharp</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>Google;Cloud;Grpc;GCP</PackageTags>
-    <Version>0.1.2</Version>
-    <PackageReleaseNotes>Publish a new version to support both .NETStandard 1.5 and .NETFramework 4.5.</PackageReleaseNotes>
+    <Version>1.0.0</Version>
+    <PackageReleaseNotes>GA release.</PackageReleaseNotes>
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>../keys/Grpc.Gcp.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
