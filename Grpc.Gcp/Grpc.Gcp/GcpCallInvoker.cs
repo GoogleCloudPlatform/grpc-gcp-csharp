@@ -222,11 +222,14 @@ namespace Grpc.Gcp
             return new Tuple<ChannelRef, string>(channelRef, boundKey);
         }
 
+        // Note: response may be default(TResponse) in the case of a failure. We only expect to be called from
+        // protobuf-based calls anyway, so it will always be a class type, and will never be null for success cases.
+        // We can therefore check for nullity rather than having a separate "success" parameter.
         private void PostProcess<TResponse>(AffinityConfig affinityConfig, ChannelRef channelRef, string boundKey, TResponse response)
         {
             channelRef.ActiveStreamCountDecr();
-            // Process BIND or UNBIND if the method has affinity feature enabled.
-            if (affinityConfig != null)
+            // Process BIND or UNBIND if the method has affinity feature enabled, but only for successful calls.
+            if (affinityConfig != null && response != null)
             {
                 if (affinityConfig.Command == AffinityConfig.Types.Command.Bind)
                 {
@@ -236,7 +239,7 @@ namespace Grpc.Gcp
                 {
                     Unbind(boundKey);
                 }
-            }
+            }            
             
         }
 
@@ -364,9 +367,16 @@ namespace Grpc.Gcp
 
             async Task<TResponse> PostProcessPropagateResult(Task<TResponse> task)
             {
-                var response =  await task.ConfigureAwait(false);
-                PostProcess(affinityConfig, channelRef, boundKey, response);
-                return response;
+                TResponse response = default(TResponse);
+                try
+                {
+                    response = await task.ConfigureAwait(false);
+                    return response;
+                }
+                finally
+                {
+                    PostProcess(affinityConfig, channelRef, boundKey, response);
+                }
             }
         }
 
@@ -383,10 +393,16 @@ namespace Grpc.Gcp
             string boundKey = tupleResult.Item2;
 
             var callDetails = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
-            TResponse response = Calls.BlockingUnaryCall<TRequest, TResponse>(callDetails, request);
-
-            PostProcess(affinityConfig, channelRef, boundKey, response);
-            return response;
+            TResponse response = default(TResponse);
+            try
+            {
+                response = Calls.BlockingUnaryCall<TRequest, TResponse>(callDetails, request);
+                return response;
+            }
+            finally
+            {
+                PostProcess(affinityConfig, channelRef, boundKey, response);
+            }
         }
 
         /// <summary>

@@ -16,8 +16,22 @@ namespace Grpc.Gcp.IntegrationTest
             await RunWithServer(
                 new ThrowingService(),
                 null,
-                async (invoker, client) => await Assert.ThrowsExceptionAsync<RpcException>(async () => await client.DoSimpleAsync(new SimpleRequest())),
-                (invoker, client) => Assert.ThrowsException<RpcException>(() => client.DoSimple(new SimpleRequest())));
+                async (invoker, client) =>
+                {
+                    await Assert.ThrowsExceptionAsync<RpcException>(async () => await client.DoSimpleAsync(new SimpleRequest()));
+                    AssertNoActiveStreams(invoker);
+                },
+                (invoker, client) =>
+                {
+                    Assert.ThrowsException<RpcException>(() => client.DoSimple(new SimpleRequest()));
+                    AssertNoActiveStreams(invoker);
+                });
+        }
+
+        private void AssertNoActiveStreams(GcpCallInvoker invoker)
+        {
+            var channelRefs = invoker.GetChannelRefsForTest();
+            Assert.AreEqual(0, channelRefs.Sum(cr => cr.ActiveStreamCount));
         }
 
         /// <summary>

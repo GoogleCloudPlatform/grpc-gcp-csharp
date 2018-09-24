@@ -38,16 +38,27 @@ namespace Grpc.Gcp
 
         public async Task<bool> MoveNext(CancellationToken token)
         {
-            bool result = await originalStreamReader.MoveNext(token);
-
-            // The last invokcation of originalStreamReader.MoveNext returns false if finishes successfully.
-            if (!result && !callbackDone)
+            bool executeCallback = false;
+            try
             {
-                // if stream is successfully proceesed, execute callback and make sure callback is called only once.
-                postProcess(lastResponse);
-                callbackDone = true;
+                bool result = await originalStreamReader.MoveNext(token);
+                // The last invocation of originalStreamReader.MoveNext returns false if it finishes successfully.
+                if (!result)
+                {
+                    executeCallback = true;
+                }
+                return result;
             }
-            return result;
+            finally
+            {
+                // If stream is successfully processed or failed, execute the callback.
+                // We ensure the callback is called only once.
+                if (executeCallback && !callbackDone)
+                {
+                    postProcess(lastResponse);
+                    callbackDone = true;
+                }
+            }
         }
 
         public void Dispose()
