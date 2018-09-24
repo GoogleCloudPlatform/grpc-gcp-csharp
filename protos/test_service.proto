@@ -11,6 +11,7 @@ package grpc.gcp.integration_test;
 
 service TestService {
   rpc DoSimple(SimpleRequest) returns (SimpleResponse);
+  rpc DoComplex(ComplexRequest) returns (ComplexResponse);
 }
 
 message SimpleRequest {
@@ -19,4 +20,22 @@ message SimpleRequest {
 
 message SimpleResponse {
   string name = 2;
+}
+
+message ComplexInner {
+  string name = 1;
+  int32 number = 2;
+  ComplexInner nested_inner = 3;
+}
+
+message ComplexRequest {
+  string name = 1;
+  int32 number = 2;
+  ComplexInner inner = 3;
+}
+
+message ComplexResponse {
+  string name = 1;
+  int32 number = 2;
+  ComplexInner inner = 3;
 }
