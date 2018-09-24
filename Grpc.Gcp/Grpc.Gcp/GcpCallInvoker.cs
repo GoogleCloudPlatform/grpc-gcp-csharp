@@ -59,6 +59,10 @@ namespace Grpc.Gcp
                         }
                         throw;
                     }
+                    if (apiConfig.ChannelPool == null)
+                    {
+                        throw new ArgumentException("Invalid API config: no channel pool settings");
+                    }
                 }
                 this.options = options.Where(o => o.Name != ApiConfigChannelArg).ToList();
             }
@@ -162,46 +166,63 @@ namespace Grpc.Gcp
                 return null;
             }
             string[] names = affinityKey.Split('.');
-            if (names != null)
+            foreach (string name in names)
             {
-                foreach (string name in names)
+                var field = message.Descriptor.FindFieldByName(name);
+                if (field == null)
                 {
-                    object value = message.Descriptor.FindFieldByName(name).Accessor.GetValue(message);
-                    if (value is string)
-                    {
-                        return (string)value;
-                    }
-                    else if (value is IMessage)
-                    {
-                        message = (IMessage)value;
-                    }
+                    throw new InvalidOperationException($"Field {name} not present in message {message.Descriptor.Name}");
+                }
+                var accessor = field.Accessor;
+                if (accessor == null)
+                {
+                    throw new InvalidOperationException($"Field {name} in message {message.Descriptor.Name} has no accessor");
+                }
+                switch (accessor.GetValue(message))
+                {
+                    case string text:
+                        return text;
+                    case IMessage nestedMessage:
+                        message = nestedMessage;
+                        break;
+                    case null:
+                        // Probably a nested message, but with no value. Just don't use an affinity key.
+                        return null;
+                    default:
+                        throw new InvalidOperationException($"Field {name} in message {message.Descriptor.Name} is neither a string nor another message");
                 }
             }
-            throw new Exception(String.Format("Cannot find the field in the proto, path: {0}", affinityKey));
+            throw new InvalidOperationException($"Affinity key {affinityKey} in message {message.Descriptor.Name} does not represent a path to a string value");
         }
 
         private void Bind(ChannelRef channelRef, string affinityKey)
         {
-            lock (thisLock)
+            if (!string.IsNullOrEmpty(affinityKey))
             {
-                if (!string.IsNullOrEmpty(affinityKey) && !channelRefByAffinityKey.Keys.Contains(affinityKey))
+                lock (thisLock)
                 {
-                    channelRefByAffinityKey.Add(affinityKey, channelRef);
+                    // TODO: What should we do if the dictionary already contains this key, but for a different channel ref?
+                    if (!channelRefByAffinityKey.Keys.Contains(affinityKey))
+                    {
+                        channelRefByAffinityKey.Add(affinityKey, channelRef);
+                    }
+                    channelRefByAffinityKey[affinityKey].AffinityCountIncr();
                 }
-                channelRefByAffinityKey[affinityKey].AffinityCountIncr();
             }
         }
 
-        private ChannelRef Unbind(string affinityKey)
+        private void Unbind(string affinityKey)
         {
-            lock (thisLock)
+            if (!string.IsNullOrEmpty(affinityKey))
             {
-                if (channelRefByAffinityKey.TryGetValue(affinityKey, out ChannelRef channelRef))
+                lock (thisLock)
                 {
-                    channelRef.AffinityCountDecr();
-                    channelRefByAffinityKey.Remove(affinityKey);
+                    if (channelRefByAffinityKey.TryGetValue(affinityKey, out ChannelRef channelRef))
+                    {
+                        channelRef.AffinityCountDecr();
+                        channelRefByAffinityKey.Remove(affinityKey);
+                    }
                 }
-                return channelRef;
             }
         }
 
