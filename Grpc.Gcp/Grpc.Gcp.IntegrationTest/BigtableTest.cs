@@ -74,7 +74,7 @@ namespace Grpc.Gcp.IntegrationTest
             mutateRowRequest.Mutations.Add(mutation);
 
             client.MutateRow(mutateRowRequest);
-            Assert.AreEqual(1, invoker.channelRefs.Count);
+            Assert.AreEqual(1, invoker.GetChannelRefsForTest().Count);
         }
 
         [TestMethod]
@@ -99,10 +99,11 @@ namespace Grpc.Gcp.IntegrationTest
             mutateRowRequest.Mutations.Add(mutation);
 
             AsyncUnaryCall<MutateRowResponse> call = client.MutateRowAsync(mutateRowRequest);
-            Assert.AreEqual(1, invoker.channelRefs.Count);
-            Assert.AreEqual(1, invoker.channelRefs[0].ActiveStreamCount);
+            var channelRefs = invoker.GetChannelRefsForTest();
+            Assert.AreEqual(1, channelRefs.Count);
+            Assert.AreEqual(1, channelRefs[0].ActiveStreamCount);
             MutateRowResponse response = call.ResponseAsync.Result;
-            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamCount);
+            Assert.AreEqual(0, channelRefs[0].ActiveStreamCount);
         }
 
         [TestMethod]
@@ -117,9 +118,10 @@ namespace Grpc.Gcp.IntegrationTest
                 }
             };
             var streamingCall = client.ReadRows(readRowsRequest);
-            Assert.AreEqual(1, invoker.channelRefs.Count);
-            Assert.AreEqual(1, invoker.channelRefs[0].ActiveStreamCount);
-            Assert.ThrowsException<System.InvalidOperationException>(() => streamingCall.GetStatus());
+            var channelRefs = invoker.GetChannelRefsForTest();
+            Assert.AreEqual(1, channelRefs.Count);
+            Assert.AreEqual(1, channelRefs[0].ActiveStreamCount);
+            Assert.ThrowsException<InvalidOperationException>(() => streamingCall.GetStatus());
 
             CancellationTokenSource tokenSource = new CancellationTokenSource();
             CancellationToken token = tokenSource.Token;
@@ -130,8 +132,10 @@ namespace Grpc.Gcp.IntegrationTest
                 if (firstResponse == null) firstResponse = responseStream.Current;
             }
             Assert.AreEqual("test-value", firstResponse.Chunks[0].Value.ToStringUtf8());
-            Assert.AreEqual(1, invoker.channelRefs.Count);
-            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamCount);
+
+            channelRefs = invoker.GetChannelRefsForTest();
+            Assert.AreEqual(1, channelRefs.Count);
+            Assert.AreEqual(0, channelRefs[0].ActiveStreamCount);
             Assert.AreEqual(StatusCode.OK, streamingCall.GetStatus().StatusCode);
         }
 
@@ -145,6 +149,7 @@ namespace Grpc.Gcp.IntegrationTest
 
             var calls = new List<AsyncServerStreamingCall<ReadRowsResponse>>();
 
+            IList<ChannelRef> channelRefs;
             for (int i = 0; i < lowWatermark; i++)
             {
                 var streamingCall = client.ReadRows(
@@ -156,8 +161,9 @@ namespace Grpc.Gcp.IntegrationTest
                             RowKeys = { ByteString.CopyFromUtf8(RowKey) }
                         }
                     });
-                Assert.AreEqual(1, invoker.channelRefs.Count);
-                Assert.AreEqual(i + 1, invoker.channelRefs[0].ActiveStreamCount);
+                channelRefs = invoker.GetChannelRefsForTest();
+                Assert.AreEqual(1, channelRefs.Count);
+                Assert.AreEqual(i + 1, channelRefs[0].ActiveStreamCount);
                 calls.Add(streamingCall);
             }
 
@@ -172,9 +178,11 @@ namespace Grpc.Gcp.IntegrationTest
                         RowKeys = { ByteString.CopyFromUtf8(RowKey) }
                     }
                 });
-            Assert.AreEqual(2, invoker.channelRefs.Count);
-            Assert.AreEqual(lowWatermark, invoker.channelRefs[0].ActiveStreamCount);
-            Assert.AreEqual(1, invoker.channelRefs[1].ActiveStreamCount);
+
+            channelRefs = invoker.GetChannelRefsForTest();
+            Assert.AreEqual(2, channelRefs.Count);
+            Assert.AreEqual(lowWatermark, channelRefs[0].ActiveStreamCount);
+            Assert.AreEqual(1, channelRefs[1].ActiveStreamCount);
             calls.Add(anotherStreamingCall);
 
             // Clean open streams.
@@ -185,9 +193,12 @@ namespace Grpc.Gcp.IntegrationTest
                 var responseStream = calls[i].ResponseStream;
                 while (responseStream.MoveNext(token).Result) { };
             }
-            Assert.AreEqual(2, invoker.channelRefs.Count);
-            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamCount);
-            Assert.AreEqual(0, invoker.channelRefs[1].ActiveStreamCount);
+
+            // Check channel references again.
+            channelRefs = invoker.GetChannelRefsForTest();
+            Assert.AreEqual(2, channelRefs.Count);
+            Assert.AreEqual(0, channelRefs[0].ActiveStreamCount);
+            Assert.AreEqual(0, channelRefs[1].ActiveStreamCount);
         }
 
         [TestMethod]
@@ -206,7 +217,7 @@ namespace Grpc.Gcp.IntegrationTest
                             RowKeys = { ByteString.CopyFromUtf8(RowKey) }
                         }
                     });
-                Assert.AreEqual(i + 1, invoker.channelRefs.Count);
+                Assert.AreEqual(i + 1, invoker.GetChannelRefsForTest().Count);
                 calls.Add(streamingCall);
             }
 
@@ -223,7 +234,7 @@ namespace Grpc.Gcp.IntegrationTest
                             RowKeys = { ByteString.CopyFromUtf8(RowKey) }
                         }
                     });
-                Assert.AreEqual(DefaultMaxChannelsPerTarget, invoker.channelRefs.Count);
+                Assert.AreEqual(DefaultMaxChannelsPerTarget, invoker.GetChannelRefsForTest().Count);
                 calls.Add(streamingCall);
             }
 
@@ -235,9 +246,9 @@ namespace Grpc.Gcp.IntegrationTest
                 var responseStream = calls[i].ResponseStream;
                 while (responseStream.MoveNext(token).Result) { };
             }
-            Assert.AreEqual(DefaultMaxChannelsPerTarget, invoker.channelRefs.Count);
+            Assert.AreEqual(DefaultMaxChannelsPerTarget, invoker.GetChannelRefsForTest().Count);
 
-            var channelRefs = invoker.channelRefs;
+            var channelRefs = invoker.GetChannelRefsForTest();
             for (int i = 0; i < channelRefs.Count; i++)
             {
                 var channel = channelRefs[i].Channel;
@@ -281,7 +292,7 @@ namespace Grpc.Gcp.IntegrationTest
             mutateRowRequest.Mutations.Add(mutation);
 
             client.MutateRow(mutateRowRequest);
-            Assert.AreEqual(1, invoker.channelRefs.Count);
+            Assert.AreEqual(1, invoker.GetChannelRefsForTest().Count);
         }
     }
 }

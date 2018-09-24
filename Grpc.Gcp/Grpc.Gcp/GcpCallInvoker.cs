@@ -14,14 +14,16 @@ namespace Grpc.Gcp
     public class GcpCallInvoker : CallInvoker
     {
         public const string ApiConfigChannelArg = "grpc_gcp.api_config";
-
-        internal IDictionary<string, ChannelRef> channelRefByAffinityKey = new Dictionary<string, ChannelRef>();
-        internal IList<ChannelRef> channelRefs = new List<ChannelRef>();
-
         private const string ClientChannelId = "grpc_gcp.client_channel.id";
         private const Int32 DefaultChannelPoolSize = 10;
         private const Int32 DefaultMaxCurrentStreams = 100;
+
+        // Lock to protect the channel reference collections, as they're not thread-safe.
         private readonly Object thisLock = new Object();
+        private readonly IDictionary<string, ChannelRef> channelRefByAffinityKey = new Dictionary<string, ChannelRef>();
+        private readonly IList<ChannelRef> channelRefs = new List<ChannelRef>();
+
+        // Access to these fields does not need to be protected by the lock: the objects are never modified.
         private readonly string target;
         private readonly ApiConfig apiConfig;
         private readonly IDictionary<string, AffinityConfig> affinityByMethod;
@@ -396,6 +398,34 @@ namespace Grpc.Gcp
             for (int i = 0; i < channelRefs.Count; i++)
             {
                 await channelRefs[i].Channel.ShutdownAsync();
+            }
+        }
+
+        // Test helper methods
+
+        /// <summary>
+        /// Returns a deep clone of the internal list of channel references.
+        /// This method should only be used in tests.
+        /// </summary>
+        internal IList<ChannelRef> GetChannelRefsForTest()
+        {
+            lock (thisLock)
+            {
+                // Create an independent copy
+                return channelRefs.Select(cr => cr.Clone()).ToList();
+            }
+        }
+
+        /// <summary>
+        /// Returns a deep clone of the internal dictionary of channel references by affinity key.
+        /// This method should only be used in tests.
+        /// </summary>
+        internal IDictionary<string, ChannelRef> GetChannelRefsByAffinityKeyForTest()
+        {
+            lock (thisLock)
+            {
+                // Create an independent copy
+                return channelRefByAffinityKey.ToDictionary(pair => pair.Key, pair => pair.Value.Clone());
             }
         }
     }

@@ -91,7 +91,7 @@ namespace Grpc.Gcp.IntegrationTest
                 var call = client.CreateSessionAsync(
                     new CreateSessionRequest { Database = DatabaseUrl });
                 calls.Add(call);
-                Assert.AreEqual(i + 1, invoker.channelRefs.Count);
+                Assert.AreEqual(i + 1, invoker.GetChannelRefsForTest().Count);
             }
             for (int i = 0; i < calls.Count; i++)
             {
@@ -106,7 +106,7 @@ namespace Grpc.Gcp.IntegrationTest
                 var call = client.CreateSessionAsync(
                     new CreateSessionRequest { Database = DatabaseUrl });
                 calls.Add(call);
-                Assert.AreEqual(DefaultMaxChannelsPerTarget, invoker.channelRefs.Count);
+                Assert.AreEqual(DefaultMaxChannelsPerTarget, invoker.GetChannelRefsForTest().Count);
             }
             for (int i = 0; i < calls.Count; i++)
             {
@@ -125,7 +125,7 @@ namespace Grpc.Gcp.IntegrationTest
                     new CreateSessionRequest { Database = DatabaseUrl });
 
                 Assert.IsNotNull(session);
-                Assert.AreEqual(1, invoker.channelRefs.Count);
+                Assert.AreEqual(1, invoker.GetChannelRefsForTest().Count);
 
                 client.DeleteSession(new DeleteSessionRequest { Name = session.Name });
             }
@@ -142,9 +142,7 @@ namespace Grpc.Gcp.IntegrationTest
                 };
                 session = client.CreateSession(request);
                 Assert.IsNotNull(session);
-                Assert.AreEqual(1, invoker.channelRefs.Count);
-                Assert.AreEqual(1, invoker.channelRefs[0].AffinityCount);
-                Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamCount);
+                AssertAffinityCount(1);
             }
 
             {
@@ -156,9 +154,7 @@ namespace Grpc.Gcp.IntegrationTest
                 Assert.IsNotNull(response);
                 Assert.IsNotNull(response.Sessions);
                 Assert.IsTrue(response.Sessions.Any(item => item.Name == session.Name));
-                Assert.AreEqual(1, invoker.channelRefs.Count);
-                Assert.AreEqual(1, invoker.channelRefs[0].AffinityCount);
-                Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamCount);
+                AssertAffinityCount(1);
             }
 
             {
@@ -167,9 +163,7 @@ namespace Grpc.Gcp.IntegrationTest
                     Name = session.Name
                 };
                 client.DeleteSession(request);
-                Assert.AreEqual(1, invoker.channelRefs.Count);
-                Assert.AreEqual(0, invoker.channelRefs[0].AffinityCount);
-                Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamCount);
+                AssertAffinityCount(0);
             }
 
             {
@@ -181,10 +175,9 @@ namespace Grpc.Gcp.IntegrationTest
                 Assert.IsNotNull(response);
                 Assert.IsNotNull(response.Sessions);
                 Assert.IsFalse(response.Sessions.Any(item => item.Name == session.Name));
-                Assert.AreEqual(1, invoker.channelRefs.Count);
-                Assert.AreEqual(0, invoker.channelRefs[0].AffinityCount);
-                Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamCount);
+                AssertAffinityCount(0);
             }
+
         }
 
         [TestMethod]
@@ -198,9 +191,7 @@ namespace Grpc.Gcp.IntegrationTest
                 };
                 session = client.CreateSession(request);
                 Assert.IsNotNull(session);
-                Assert.AreEqual(1, invoker.channelRefs.Count);
-                Assert.AreEqual(1, invoker.channelRefs[0].AffinityCount);
-                Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamCount);
+                AssertAffinityCount(1);
             }
             {
                 ExecuteSqlRequest request = new ExecuteSqlRequest
@@ -209,9 +200,7 @@ namespace Grpc.Gcp.IntegrationTest
                     Sql = string.Format("select id, data from {0}", TableName)
                 };
                 ResultSet resultSet = client.ExecuteSql(request);
-                Assert.AreEqual(1, invoker.channelRefs.Count);
-                Assert.AreEqual(1, invoker.channelRefs[0].AffinityCount);
-                Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamCount);
+                AssertAffinityCount(1);
                 Assert.IsNotNull(resultSet);
                 Assert.AreEqual(1, resultSet.Rows.Count);
                 Assert.AreEqual(ColumnId, resultSet.Rows[0].Values[0].StringValue);
@@ -222,9 +211,7 @@ namespace Grpc.Gcp.IntegrationTest
                     Name = session.Name
                 };
                 client.DeleteSession(request);
-                Assert.AreEqual(1, invoker.channelRefs.Count);
-                Assert.AreEqual(0, invoker.channelRefs[0].AffinityCount);
-                Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamCount);
+                AssertAffinityCount(0);
             }
         }
 
@@ -236,9 +223,7 @@ namespace Grpc.Gcp.IntegrationTest
             session = client.CreateSession(
                 new CreateSessionRequest { Database = DatabaseUrl });
             Assert.IsNotNull(session);
-            Assert.AreEqual(1, invoker.channelRefs.Count);
-            Assert.AreEqual(1, invoker.channelRefs[0].AffinityCount);
-            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamCount);
+            AssertAffinityCount(1);
 
             var streamingCall = client.ExecuteStreamingSql(
                 new ExecuteSqlRequest
@@ -246,9 +231,8 @@ namespace Grpc.Gcp.IntegrationTest
                     Session = session.Name,
                     Sql = string.Format("select id, data from {0}", TableName)
                 });
-            Assert.AreEqual(1, invoker.channelRefs.Count);
-            Assert.AreEqual(1, invoker.channelRefs[0].AffinityCount);
-            Assert.AreEqual(1, invoker.channelRefs[0].ActiveStreamCount);
+
+            AssertAffinityCount(1, expectedActiveStreamCount: 1);
 
             CancellationTokenSource tokenSource = new CancellationTokenSource();
             CancellationToken token = tokenSource.Token;
@@ -259,14 +243,10 @@ namespace Grpc.Gcp.IntegrationTest
                 if (firstResultSet == null) firstResultSet = responseStream.Current;
             }
             Assert.AreEqual(ColumnId, firstResultSet?.Values[0].StringValue);
-            Assert.AreEqual(1, invoker.channelRefs.Count);
-            Assert.AreEqual(1, invoker.channelRefs[0].AffinityCount);
-            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamCount);
+            AssertAffinityCount(1);
 
             client.DeleteSession(new DeleteSessionRequest { Name = session.Name });
-            Assert.AreEqual(1, invoker.channelRefs.Count);
-            Assert.AreEqual(0, invoker.channelRefs[0].AffinityCount);
-            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamCount);
+            AssertAffinityCount(0);
         }
 
         [TestMethod]
@@ -277,9 +257,7 @@ namespace Grpc.Gcp.IntegrationTest
             session = client.CreateSession(
                 new CreateSessionRequest { Database = DatabaseUrl });
             Assert.IsNotNull(session);
-            Assert.AreEqual(1, invoker.channelRefs.Count);
-            Assert.AreEqual(1, invoker.channelRefs[0].AffinityCount);
-            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamCount);
+            AssertAffinityCount(1);
 
             AsyncUnaryCall<ResultSet> call = client.ExecuteSqlAsync(
                 new ExecuteSqlRequest
@@ -287,25 +265,18 @@ namespace Grpc.Gcp.IntegrationTest
                     Session = session.Name,
                     Sql = string.Format("select id, data from {0}", TableName)
                 });
-            Assert.AreEqual(1, invoker.channelRefs.Count);
-            Assert.AreEqual(1, invoker.channelRefs[0].AffinityCount);
-            Assert.AreEqual(1, invoker.channelRefs[0].ActiveStreamCount);
+            AssertAffinityCount(1, expectedActiveStreamCount: 1);
 
             ResultSet resultSet = call.ResponseAsync.Result;
 
-            Assert.AreEqual(1, invoker.channelRefs.Count);
-            Assert.AreEqual(1, invoker.channelRefs[0].AffinityCount);
-            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamCount);
+            AssertAffinityCount(1);
 
             Assert.IsNotNull(resultSet);
             Assert.AreEqual(1, resultSet.Rows.Count);
             Assert.AreEqual(ColumnId, resultSet.Rows[0].Values[0].StringValue);
 
             client.DeleteSession(new DeleteSessionRequest { Name = session.Name });
-            Assert.AreEqual(1, invoker.channelRefs.Count);
-            Assert.AreEqual(0, invoker.channelRefs[0].AffinityCount);
-            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamCount);
-
+            AssertAffinityCount(0);
         }
 
         [TestMethod]
@@ -315,14 +286,14 @@ namespace Grpc.Gcp.IntegrationTest
             {
                 Name = "random_name"
             };
-            Assert.ThrowsException<Grpc.Core.RpcException>(() => client.GetSession(getSessionRequest));
+            Assert.ThrowsException<RpcException>(() => client.GetSession(getSessionRequest));
 
             DeleteSessionRequest deleteSessionRequest = new DeleteSessionRequest
             {
                 Name = "random_name"
             };
 
-            Assert.ThrowsException<Grpc.Core.RpcException>(() => client.DeleteSession(deleteSessionRequest));
+            Assert.ThrowsException<RpcException>(() => client.DeleteSession(deleteSessionRequest));
         }
 
         [TestMethod]
@@ -334,7 +305,7 @@ namespace Grpc.Gcp.IntegrationTest
             };
             Session session = client.CreateSession(request);
 
-            Assert.AreEqual(1, invoker.channelRefByAffinityKey.Count);
+            Assert.AreEqual(1, invoker.GetChannelRefsByAffinityKeyForTest().Count);
 
             DeleteSessionRequest deleteSessionRequest = new DeleteSessionRequest
             {
@@ -342,7 +313,7 @@ namespace Grpc.Gcp.IntegrationTest
             };
             client.DeleteSession(deleteSessionRequest);
 
-            Assert.AreEqual(0, invoker.channelRefByAffinityKey.Count);
+            Assert.AreEqual(0, invoker.GetChannelRefsByAffinityKeyForTest().Count);
 
             GetSessionRequest getSessionRequest = new GetSessionRequest();
             getSessionRequest.Name = session.Name;
@@ -365,9 +336,7 @@ namespace Grpc.Gcp.IntegrationTest
             {
                 Session session = client.CreateSession(
                     new CreateSessionRequest { Database = DatabaseUrl });
-                Assert.AreEqual(1, invoker.channelRefs.Count);
-                Assert.AreEqual(i + 1, invoker.channelRefs[0].AffinityCount);
-                Assert.AreEqual(i, invoker.channelRefs[0].ActiveStreamCount);
+                AssertAffinityCount(i + 1, expectedActiveStreamCount: i);
                 Assert.IsNotNull(session);
 
                 sessions.Add(session);
@@ -378,10 +347,7 @@ namespace Grpc.Gcp.IntegrationTest
                         Session = session.Name,
                         Sql = string.Format("select id, data from {0}", TableName)
                     });
-                Assert.AreEqual(1, invoker.channelRefs.Count);
-                Assert.AreEqual(i + 1, invoker.channelRefs[0].AffinityCount);
-                Assert.AreEqual(i + 1, invoker.channelRefs[0].ActiveStreamCount);
-
+                AssertAffinityCount(i + 1, expectedActiveStreamCount: i + 1);
                 calls.Add(streamingCall);
             }
 
@@ -390,11 +356,12 @@ namespace Grpc.Gcp.IntegrationTest
 
             Session anotherSession = client.CreateSession(
                 new CreateSessionRequest { Database = DatabaseUrl });
-            Assert.AreEqual(2, invoker.channelRefs.Count);
-            Assert.AreEqual(lowWatermark, invoker.channelRefs[0].AffinityCount);
-            Assert.AreEqual(lowWatermark, invoker.channelRefs[0].ActiveStreamCount);
-            Assert.AreEqual(1, invoker.channelRefs[1].AffinityCount);
-            Assert.AreEqual(0, invoker.channelRefs[1].ActiveStreamCount);
+            var channelRefs = invoker.GetChannelRefsForTest();
+            Assert.AreEqual(2, channelRefs.Count);
+            Assert.AreEqual(lowWatermark, channelRefs[0].AffinityCount);
+            Assert.AreEqual(lowWatermark, channelRefs[0].ActiveStreamCount);
+            Assert.AreEqual(1, channelRefs[1].AffinityCount);
+            Assert.AreEqual(0, channelRefs[1].ActiveStreamCount);
             Assert.IsNotNull(anotherSession);
 
             sessions.Add(anotherSession);
@@ -405,11 +372,12 @@ namespace Grpc.Gcp.IntegrationTest
                     Session = anotherSession.Name,
                     Sql = string.Format("select id, data from {0}", TableName)
                 });
-            Assert.AreEqual(2, invoker.channelRefs.Count);
-            Assert.AreEqual(lowWatermark, invoker.channelRefs[0].AffinityCount);
-            Assert.AreEqual(lowWatermark, invoker.channelRefs[0].ActiveStreamCount);
-            Assert.AreEqual(1, invoker.channelRefs[1].AffinityCount);
-            Assert.AreEqual(1, invoker.channelRefs[1].ActiveStreamCount);
+            channelRefs = invoker.GetChannelRefsForTest();
+            Assert.AreEqual(2, channelRefs.Count);
+            Assert.AreEqual(lowWatermark, channelRefs[0].AffinityCount);
+            Assert.AreEqual(lowWatermark, channelRefs[0].ActiveStreamCount);
+            Assert.AreEqual(1, channelRefs[1].AffinityCount);
+            Assert.AreEqual(1, channelRefs[1].ActiveStreamCount);
 
             calls.Add(anotherStreamingCall);
 
@@ -421,22 +389,24 @@ namespace Grpc.Gcp.IntegrationTest
                 var responseStream = calls[i].ResponseStream;
                 while (responseStream.MoveNext(token).Result) { };
             }
-            Assert.AreEqual(2, invoker.channelRefs.Count);
-            Assert.AreEqual(lowWatermark, invoker.channelRefs[0].AffinityCount);
-            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamCount);
-            Assert.AreEqual(1, invoker.channelRefs[1].AffinityCount);
-            Assert.AreEqual(0, invoker.channelRefs[1].ActiveStreamCount);
+            channelRefs = invoker.GetChannelRefsForTest();
+            Assert.AreEqual(2, channelRefs.Count);
+            Assert.AreEqual(lowWatermark, channelRefs[0].AffinityCount);
+            Assert.AreEqual(0, channelRefs[0].ActiveStreamCount);
+            Assert.AreEqual(1, channelRefs[1].AffinityCount);
+            Assert.AreEqual(0, channelRefs[1].ActiveStreamCount);
 
             // Delete all sessions to clean affinity.
             for (int i = 0; i < sessions.Count; i++)
             {
                 client.DeleteSession(new DeleteSessionRequest { Name = sessions[i].Name });
             }
-            Assert.AreEqual(2, invoker.channelRefs.Count);
-            Assert.AreEqual(0, invoker.channelRefs[0].AffinityCount);
-            Assert.AreEqual(0, invoker.channelRefs[0].ActiveStreamCount);
-            Assert.AreEqual(0, invoker.channelRefs[1].AffinityCount);
-            Assert.AreEqual(0, invoker.channelRefs[1].ActiveStreamCount);
+            channelRefs = invoker.GetChannelRefsForTest();
+            Assert.AreEqual(2, channelRefs.Count);
+            Assert.AreEqual(0, channelRefs[0].AffinityCount);
+            Assert.AreEqual(0, channelRefs[0].ActiveStreamCount);
+            Assert.AreEqual(0, channelRefs[1].AffinityCount);
+            Assert.AreEqual(0, channelRefs[1].ActiveStreamCount);
         }
 
         [TestMethod]
@@ -449,7 +419,7 @@ namespace Grpc.Gcp.IntegrationTest
                 var call = client.CreateSessionAsync(
                     new CreateSessionRequest { Database = DatabaseUrl });
                 calls.Add(call);
-                Assert.AreEqual(i + 1, invoker.channelRefs.Count);
+                Assert.AreEqual(i + 1, invoker.GetChannelRefsForTest().Count);
             }
             for (int i = 0; i < calls.Count; i++)
             {
@@ -457,7 +427,7 @@ namespace Grpc.Gcp.IntegrationTest
                     new DeleteSessionRequest { Name = calls[i].ResponseAsync.Result.Name });
             }
 
-            var channelRefs = invoker.channelRefs;
+            var channelRefs = invoker.GetChannelRefsForTest();
             for (int i = 0; i < channelRefs.Count; i++)
             {
                 var channel = channelRefs[i].Channel;
@@ -472,6 +442,14 @@ namespace Grpc.Gcp.IntegrationTest
                 var channel = channelRefs[i].Channel;
                 Assert.AreEqual(ChannelState.Shutdown, channel.State);
             }
+        }
+
+        private void AssertAffinityCount(int expectedAffinityCount, int expectedActiveStreamCount = 0)
+        {
+            var channelRefs = invoker.GetChannelRefsForTest();
+            Assert.AreEqual(1, channelRefs.Count);
+            Assert.AreEqual(expectedAffinityCount, channelRefs[0].AffinityCount);
+            Assert.AreEqual(expectedActiveStreamCount, channelRefs[0].ActiveStreamCount);
         }
     }
 }
