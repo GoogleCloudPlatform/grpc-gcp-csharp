@@ -250,15 +250,8 @@ namespace Grpc.Gcp
             var callDetails = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
             var originalCall = Calls.AsyncClientStreamingCall(callDetails);
 
-            TResponse callback(TResponse resp)
-            {
-                channelRef.ActiveStreamCountDecr();
-                return resp;
-            }
-
             // Decrease the active streams count once async response finishes.
-            var gcpResponseAsync = originalCall.ResponseAsync
-                .ContinueWith(antecendent => callback(antecendent.Result));
+            var gcpResponseAsync = DecrementCountAndPropagateResult(originalCall.ResponseAsync);
 
             // Create a wrapper of the original AsyncClientStreamingCall.
             return new AsyncClientStreamingCall<TRequest, TResponse>(
@@ -268,6 +261,18 @@ namespace Grpc.Gcp
                 () => originalCall.GetStatus(),
                 () => originalCall.GetTrailers(),
                 () => originalCall.Dispose());
+
+            async Task<TResponse> DecrementCountAndPropagateResult(Task<TResponse> task)
+            {
+                try
+                {
+                    return await task.ConfigureAwait(false);
+                }
+                finally
+                {
+                    channelRef.ActiveStreamCountDecr();
+                }
+            }
         }
 
         /// <summary>
@@ -344,15 +349,8 @@ namespace Grpc.Gcp
             var callDetails = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
             var originalCall = Calls.AsyncUnaryCall(callDetails, request);
 
-            TResponse callback(TResponse resp)
-            {
-                PostProcess(affinityConfig, channelRef, boundKey, resp);
-                return resp;
-            }
-
             // Executes affinity postprocess once the async response finishes.
-            var gcpResponseAsync = originalCall.ResponseAsync
-                .ContinueWith(antecendent => callback(antecendent.Result));
+            var gcpResponseAsync = PostProcessPropagateResult(originalCall.ResponseAsync);
 
             // Create a wrapper of the original AsyncUnaryCall.
             return new AsyncUnaryCall<TResponse>(
@@ -362,6 +360,12 @@ namespace Grpc.Gcp
                 () => originalCall.GetTrailers(),
                 () => originalCall.Dispose());
 
+            async Task<TResponse> PostProcessPropagateResult(Task<TResponse> task)
+            {
+                var response =  await task.ConfigureAwait(false);
+                PostProcess(affinityConfig, channelRef, boundKey, response);
+                return response;
+            }
         }
 
         /// <summary>
