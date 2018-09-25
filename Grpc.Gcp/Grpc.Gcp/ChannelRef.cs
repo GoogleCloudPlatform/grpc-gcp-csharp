@@ -25,10 +25,10 @@ namespace Grpc.Gcp
         internal int AffinityCount => Interlocked.CompareExchange(ref affinityCount, 0, 0);
         internal int ActiveStreamCount => Interlocked.CompareExchange(ref activeStreamCount, 0, 0);
 
-        internal void AffinityCountIncr() => Interlocked.Increment(ref affinityCount);
-        internal void AffinityCountDecr() => Interlocked.Decrement(ref affinityCount);
-        internal void ActiveStreamCountIncr() => Interlocked.Increment(ref activeStreamCount);
-        internal void ActiveStreamCountDecr() => Interlocked.Decrement(ref activeStreamCount);
+        internal int AffinityCountIncr() => Interlocked.Increment(ref affinityCount);
+        internal int AffinityCountDecr() => Interlocked.Decrement(ref affinityCount);
+        internal int ActiveStreamCountIncr() => Interlocked.Increment(ref activeStreamCount);
+        internal int ActiveStreamCountDecr() => Interlocked.Decrement(ref activeStreamCount);
 
         internal ChannelRef Clone() => new ChannelRef(Channel, id, AffinityCount, ActiveStreamCount);
     }

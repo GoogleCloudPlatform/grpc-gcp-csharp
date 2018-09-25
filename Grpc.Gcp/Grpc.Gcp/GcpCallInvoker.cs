@@ -219,8 +219,13 @@ namespace Grpc.Gcp
                 {
                     if (channelRefByAffinityKey.TryGetValue(affinityKey, out ChannelRef channelRef))
                     {
-                        channelRef.AffinityCountDecr();
-                        channelRefByAffinityKey.Remove(affinityKey);
+                        int newCount = channelRef.AffinityCountDecr();
+
+                        // We would expect it to be exactly 0, but it doesn't hurt to be cautious.
+                        if (newCount <= 0)
+                        {
+                            channelRefByAffinityKey.Remove(affinityKey);
+                        }
                     }
                 }
             }

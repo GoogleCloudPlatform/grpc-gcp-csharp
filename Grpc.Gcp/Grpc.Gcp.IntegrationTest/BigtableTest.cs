@@ -102,7 +102,9 @@ namespace Grpc.Gcp.IntegrationTest
             var channelRefs = invoker.GetChannelRefsForTest();
             Assert.AreEqual(1, channelRefs.Count);
             Assert.AreEqual(1, channelRefs[0].ActiveStreamCount);
+
             MutateRowResponse response = call.ResponseAsync.Result;
+            channelRefs = invoker.GetChannelRefsForTest();
             Assert.AreEqual(0, channelRefs[0].ActiveStreamCount);
         }
 
