@@ -26,15 +26,27 @@ namespace Grpc.Gcp.IntegrationTest {
           string.Concat(
             "ChJ0ZXN0X3NlcnZpY2UucHJvdG8SGWdycGMuZ2NwLmludGVncmF0aW9uX3Rl",
             "c3QiHQoNU2ltcGxlUmVxdWVzdBIMCgRuYW1lGAEgASgJIh4KDlNpbXBsZVJl",
-            "c3BvbnNlEgwKBG5hbWUYAiABKAkybgoLVGVzdFNlcnZpY2USXwoIRG9TaW1w",
-            "bGUSKC5ncnBjLmdjcC5pbnRlZ3JhdGlvbl90ZXN0LlNpbXBsZVJlcXVlc3Qa",
-            "KS5ncnBjLmdjcC5pbnRlZ3JhdGlvbl90ZXN0LlNpbXBsZVJlc3BvbnNlYgZw",
-            "cm90bzM="));
+            "c3BvbnNlEgwKBG5hbWUYAiABKAkiawoMQ29tcGxleElubmVyEgwKBG5hbWUY",
+            "ASABKAkSDgoGbnVtYmVyGAIgASgFEj0KDG5lc3RlZF9pbm5lchgDIAEoCzIn",
+            "LmdycGMuZ2NwLmludGVncmF0aW9uX3Rlc3QuQ29tcGxleElubmVyImYKDkNv",
+            "bXBsZXhSZXF1ZXN0EgwKBG5hbWUYASABKAkSDgoGbnVtYmVyGAIgASgFEjYK",
+            "BWlubmVyGAMgASgLMicuZ3JwYy5nY3AuaW50ZWdyYXRpb25fdGVzdC5Db21w",
+            "bGV4SW5uZXIiZwoPQ29tcGxleFJlc3BvbnNlEgwKBG5hbWUYASABKAkSDgoG",
+            "bnVtYmVyGAIgASgFEjYKBWlubmVyGAMgASgLMicuZ3JwYy5nY3AuaW50ZWdy",
+            "YXRpb25fdGVzdC5Db21wbGV4SW5uZXIy0gEKC1Rlc3RTZXJ2aWNlEl8KCERv",
+            "U2ltcGxlEiguZ3JwYy5nY3AuaW50ZWdyYXRpb25fdGVzdC5TaW1wbGVSZXF1",
+            "ZXN0GikuZ3JwYy5nY3AuaW50ZWdyYXRpb25fdGVzdC5TaW1wbGVSZXNwb25z",
+            "ZRJiCglEb0NvbXBsZXgSKS5ncnBjLmdjcC5pbnRlZ3JhdGlvbl90ZXN0LkNv",
+            "bXBsZXhSZXF1ZXN0GiouZ3JwYy5nY3AuaW50ZWdyYXRpb25fdGVzdC5Db21w",
+            "bGV4UmVzcG9uc2ViBnByb3RvMw=="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { },
           new pbr::GeneratedClrTypeInfo(null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::Grpc.Gcp.IntegrationTest.SimpleRequest), global::Grpc.Gcp.IntegrationTest.SimpleRequest.Parser, new[]{ "Name" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Grpc.Gcp.IntegrationTest.SimpleResponse), global::Grpc.Gcp.IntegrationTest.SimpleResponse.Parser, new[]{ "Name" }, null, null, null)
+            new pbr::GeneratedClrTypeInfo(typeof(global::Grpc.Gcp.IntegrationTest.SimpleResponse), global::Grpc.Gcp.IntegrationTest.SimpleResponse.Parser, new[]{ "Name" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Grpc.Gcp.IntegrationTest.ComplexInner), global::Grpc.Gcp.IntegrationTest.ComplexInner.Parser, new[]{ "Name", "Number", "NestedInner" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Grpc.Gcp.IntegrationTest.ComplexRequest), global::Grpc.Gcp.IntegrationTest.ComplexRequest.Parser, new[]{ "Name", "Number", "Inner" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Grpc.Gcp.IntegrationTest.ComplexResponse), global::Grpc.Gcp.IntegrationTest.ComplexResponse.Parser, new[]{ "Name", "Number", "Inner" }, null, null, null)
           }));
     }
     #endregion
@@ -291,6 +303,579 @@ namespace Grpc.Gcp.IntegrationTest {
             break;
           case 18: {
             Name = input.ReadString();
+            break;
+          }
+        }
+      }
+    }
+
+  }
+
+  public sealed partial class ComplexInner : pb::IMessage<ComplexInner> {
+    private static readonly pb::MessageParser<ComplexInner> _parser = new pb::MessageParser<ComplexInner>(() => new ComplexInner());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public static pb::MessageParser<ComplexInner> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::Grpc.Gcp.IntegrationTest.TestServiceReflection.Descriptor.MessageTypes[2]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public ComplexInner() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public ComplexInner(ComplexInner other) : this() {
+      name_ = other.name_;
+      number_ = other.number_;
+      NestedInner = other.nestedInner_ != null ? other.NestedInner.Clone() : null;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public ComplexInner Clone() {
+      return new ComplexInner(this);
+    }
+
+    /// <summary>Field number for the "name" field.</summary>
+    public const int NameFieldNumber = 1;
+    private string name_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public string Name {
+      get { return name_; }
+      set {
+        name_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "number" field.</summary>
+    public const int NumberFieldNumber = 2;
+    private int number_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public int Number {
+      get { return number_; }
+      set {
+        number_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "nested_inner" field.</summary>
+    public const int NestedInnerFieldNumber = 3;
+    private global::Grpc.Gcp.IntegrationTest.ComplexInner nestedInner_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public global::Grpc.Gcp.IntegrationTest.ComplexInner NestedInner {
+      get { return nestedInner_; }
+      set {
+        nestedInner_ = value;
+      }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public override bool Equals(object other) {
+      return Equals(other as ComplexInner);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public bool Equals(ComplexInner other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (Name != other.Name) return false;
+      if (Number != other.Number) return false;
+      if (!object.Equals(NestedInner, other.NestedInner)) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (Name.Length != 0) hash ^= Name.GetHashCode();
+      if (Number != 0) hash ^= Number.GetHashCode();
+      if (nestedInner_ != null) hash ^= NestedInner.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public void WriteTo(pb::CodedOutputStream output) {
+      if (Name.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(Name);
+      }
+      if (Number != 0) {
+        output.WriteRawTag(16);
+        output.WriteInt32(Number);
+      }
+      if (nestedInner_ != null) {
+        output.WriteRawTag(26);
+        output.WriteMessage(NestedInner);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public int CalculateSize() {
+      int size = 0;
+      if (Name.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Name);
+      }
+      if (Number != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeInt32Size(Number);
+      }
+      if (nestedInner_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(NestedInner);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public void MergeFrom(ComplexInner other) {
+      if (other == null) {
+        return;
+      }
+      if (other.Name.Length != 0) {
+        Name = other.Name;
+      }
+      if (other.Number != 0) {
+        Number = other.Number;
+      }
+      if (other.nestedInner_ != null) {
+        if (nestedInner_ == null) {
+          nestedInner_ = new global::Grpc.Gcp.IntegrationTest.ComplexInner();
+        }
+        NestedInner.MergeFrom(other.NestedInner);
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public void MergeFrom(pb::CodedInputStream input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+        switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            Name = input.ReadString();
+            break;
+          }
+          case 16: {
+            Number = input.ReadInt32();
+            break;
+          }
+          case 26: {
+            if (nestedInner_ == null) {
+              nestedInner_ = new global::Grpc.Gcp.IntegrationTest.ComplexInner();
+            }
+            input.ReadMessage(nestedInner_);
+            break;
+          }
+        }
+      }
+    }
+
+  }
+
+  public sealed partial class ComplexRequest : pb::IMessage<ComplexRequest> {
+    private static readonly pb::MessageParser<ComplexRequest> _parser = new pb::MessageParser<ComplexRequest>(() => new ComplexRequest());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public static pb::MessageParser<ComplexRequest> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::Grpc.Gcp.IntegrationTest.TestServiceReflection.Descriptor.MessageTypes[3]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public ComplexRequest() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public ComplexRequest(ComplexRequest other) : this() {
+      name_ = other.name_;
+      number_ = other.number_;
+      Inner = other.inner_ != null ? other.Inner.Clone() : null;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public ComplexRequest Clone() {
+      return new ComplexRequest(this);
+    }
+
+    /// <summary>Field number for the "name" field.</summary>
+    public const int NameFieldNumber = 1;
+    private string name_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public string Name {
+      get { return name_; }
+      set {
+        name_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "number" field.</summary>
+    public const int NumberFieldNumber = 2;
+    private int number_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public int Number {
+      get { return number_; }
+      set {
+        number_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "inner" field.</summary>
+    public const int InnerFieldNumber = 3;
+    private global::Grpc.Gcp.IntegrationTest.ComplexInner inner_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public global::Grpc.Gcp.IntegrationTest.ComplexInner Inner {
+      get { return inner_; }
+      set {
+        inner_ = value;
+      }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public override bool Equals(object other) {
+      return Equals(other as ComplexRequest);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public bool Equals(ComplexRequest other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (Name != other.Name) return false;
+      if (Number != other.Number) return false;
+      if (!object.Equals(Inner, other.Inner)) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (Name.Length != 0) hash ^= Name.GetHashCode();
+      if (Number != 0) hash ^= Number.GetHashCode();
+      if (inner_ != null) hash ^= Inner.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public void WriteTo(pb::CodedOutputStream output) {
+      if (Name.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(Name);
+      }
+      if (Number != 0) {
+        output.WriteRawTag(16);
+        output.WriteInt32(Number);
+      }
+      if (inner_ != null) {
+        output.WriteRawTag(26);
+        output.WriteMessage(Inner);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public int CalculateSize() {
+      int size = 0;
+      if (Name.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Name);
+      }
+      if (Number != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeInt32Size(Number);
+      }
+      if (inner_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Inner);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public void MergeFrom(ComplexRequest other) {
+      if (other == null) {
+        return;
+      }
+      if (other.Name.Length != 0) {
+        Name = other.Name;
+      }
+      if (other.Number != 0) {
+        Number = other.Number;
+      }
+      if (other.inner_ != null) {
+        if (inner_ == null) {
+          inner_ = new global::Grpc.Gcp.IntegrationTest.ComplexInner();
+        }
+        Inner.MergeFrom(other.Inner);
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public void MergeFrom(pb::CodedInputStream input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+        switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            Name = input.ReadString();
+            break;
+          }
+          case 16: {
+            Number = input.ReadInt32();
+            break;
+          }
+          case 26: {
+            if (inner_ == null) {
+              inner_ = new global::Grpc.Gcp.IntegrationTest.ComplexInner();
+            }
+            input.ReadMessage(inner_);
+            break;
+          }
+        }
+      }
+    }
+
+  }
+
+  public sealed partial class ComplexResponse : pb::IMessage<ComplexResponse> {
+    private static readonly pb::MessageParser<ComplexResponse> _parser = new pb::MessageParser<ComplexResponse>(() => new ComplexResponse());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public static pb::MessageParser<ComplexResponse> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::Grpc.Gcp.IntegrationTest.TestServiceReflection.Descriptor.MessageTypes[4]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public ComplexResponse() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public ComplexResponse(ComplexResponse other) : this() {
+      name_ = other.name_;
+      number_ = other.number_;
+      Inner = other.inner_ != null ? other.Inner.Clone() : null;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public ComplexResponse Clone() {
+      return new ComplexResponse(this);
+    }
+
+    /// <summary>Field number for the "name" field.</summary>
+    public const int NameFieldNumber = 1;
+    private string name_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public string Name {
+      get { return name_; }
+      set {
+        name_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "number" field.</summary>
+    public const int NumberFieldNumber = 2;
+    private int number_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public int Number {
+      get { return number_; }
+      set {
+        number_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "inner" field.</summary>
+    public const int InnerFieldNumber = 3;
+    private global::Grpc.Gcp.IntegrationTest.ComplexInner inner_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public global::Grpc.Gcp.IntegrationTest.ComplexInner Inner {
+      get { return inner_; }
+      set {
+        inner_ = value;
+      }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public override bool Equals(object other) {
+      return Equals(other as ComplexResponse);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public bool Equals(ComplexResponse other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (Name != other.Name) return false;
+      if (Number != other.Number) return false;
+      if (!object.Equals(Inner, other.Inner)) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (Name.Length != 0) hash ^= Name.GetHashCode();
+      if (Number != 0) hash ^= Number.GetHashCode();
+      if (inner_ != null) hash ^= Inner.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public void WriteTo(pb::CodedOutputStream output) {
+      if (Name.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(Name);
+      }
+      if (Number != 0) {
+        output.WriteRawTag(16);
+        output.WriteInt32(Number);
+      }
+      if (inner_ != null) {
+        output.WriteRawTag(26);
+        output.WriteMessage(Inner);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public int CalculateSize() {
+      int size = 0;
+      if (Name.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Name);
+      }
+      if (Number != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeInt32Size(Number);
+      }
+      if (inner_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Inner);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public void MergeFrom(ComplexResponse other) {
+      if (other == null) {
+        return;
+      }
+      if (other.Name.Length != 0) {
+        Name = other.Name;
+      }
+      if (other.Number != 0) {
+        Number = other.Number;
+      }
+      if (other.inner_ != null) {
+        if (inner_ == null) {
+          inner_ = new global::Grpc.Gcp.IntegrationTest.ComplexInner();
+        }
+        Inner.MergeFrom(other.Inner);
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public void MergeFrom(pb::CodedInputStream input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+        switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            Name = input.ReadString();
+            break;
+          }
+          case 16: {
+            Number = input.ReadInt32();
+            break;
+          }
+          case 26: {
+            if (inner_ == null) {
+              inner_ = new global::Grpc.Gcp.IntegrationTest.ComplexInner();
+            }
+            input.ReadMessage(inner_);
             break;
           }
         }

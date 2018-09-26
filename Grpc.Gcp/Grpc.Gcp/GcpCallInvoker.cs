@@ -14,14 +14,16 @@ namespace Grpc.Gcp
     public class GcpCallInvoker : CallInvoker
     {
         public const string ApiConfigChannelArg = "grpc_gcp.api_config";
-
-        internal IDictionary<string, ChannelRef> channelRefByAffinityKey = new Dictionary<string, ChannelRef>();
-        internal IList<ChannelRef> channelRefs = new List<ChannelRef>();
-
         private const string ClientChannelId = "grpc_gcp.client_channel.id";
         private const Int32 DefaultChannelPoolSize = 10;
         private const Int32 DefaultMaxCurrentStreams = 100;
+
+        // Lock to protect the channel reference collections, as they're not thread-safe.
         private readonly Object thisLock = new Object();
+        private readonly IDictionary<string, ChannelRef> channelRefByAffinityKey = new Dictionary<string, ChannelRef>();
+        private readonly IList<ChannelRef> channelRefs = new List<ChannelRef>();
+
+        // Access to these fields does not need to be protected by the lock: the objects are never modified.
         private readonly string target;
         private readonly ApiConfig apiConfig;
         private readonly IDictionary<string, AffinityConfig> affinityByMethod;
@@ -56,6 +58,10 @@ namespace Grpc.Gcp
                             throw new ArgumentException("Invalid API config!", ex);
                         }
                         throw;
+                    }
+                    if (apiConfig.ChannelPool == null)
+                    {
+                        throw new ArgumentException("Invalid API config: no channel pool settings");
                     }
                 }
                 this.options = options.Where(o => o.Name != ApiConfigChannelArg).ToList();
@@ -160,46 +166,68 @@ namespace Grpc.Gcp
                 return null;
             }
             string[] names = affinityKey.Split('.');
-            if (names != null)
+            foreach (string name in names)
             {
-                foreach (string name in names)
+                var field = message.Descriptor.FindFieldByName(name);
+                if (field == null)
                 {
-                    object value = message.Descriptor.FindFieldByName(name).Accessor.GetValue(message);
-                    if (value is string)
-                    {
-                        return (string)value;
-                    }
-                    else if (value is IMessage)
-                    {
-                        message = (IMessage)value;
-                    }
+                    throw new InvalidOperationException($"Field {name} not present in message {message.Descriptor.Name}");
+                }
+                var accessor = field.Accessor;
+                if (accessor == null)
+                {
+                    throw new InvalidOperationException($"Field {name} in message {message.Descriptor.Name} has no accessor");
+                }
+                switch (accessor.GetValue(message))
+                {
+                    case string text:
+                        return text;
+                    case IMessage nestedMessage:
+                        message = nestedMessage;
+                        break;
+                    case null:
+                        // Probably a nested message, but with no value. Just don't use an affinity key.
+                        return null;
+                    default:
+                        throw new InvalidOperationException($"Field {name} in message {message.Descriptor.Name} is neither a string nor another message");
                 }
             }
-            throw new Exception(String.Format("Cannot find the field in the proto, path: {0}", affinityKey));
+            throw new InvalidOperationException($"Affinity key {affinityKey} in message {message.Descriptor.Name} does not represent a path to a string value");
         }
 
         private void Bind(ChannelRef channelRef, string affinityKey)
         {
-            lock (thisLock)
+            if (!string.IsNullOrEmpty(affinityKey))
             {
-                if (!string.IsNullOrEmpty(affinityKey) && !channelRefByAffinityKey.Keys.Contains(affinityKey))
+                lock (thisLock)
                 {
-                    channelRefByAffinityKey.Add(affinityKey, channelRef);
+                    // TODO: What should we do if the dictionary already contains this key, but for a different channel ref?
+                    if (!channelRefByAffinityKey.Keys.Contains(affinityKey))
+                    {
+                        channelRefByAffinityKey.Add(affinityKey, channelRef);
+                    }
+                    channelRefByAffinityKey[affinityKey].AffinityCountIncr();
                 }
-                channelRefByAffinityKey[affinityKey].AffinityCountIncr();
             }
         }
 
-        private ChannelRef Unbind(string affinityKey)
+        private void Unbind(string affinityKey)
         {
-            lock (thisLock)
+            if (!string.IsNullOrEmpty(affinityKey))
             {
-                if (channelRefByAffinityKey.TryGetValue(affinityKey, out ChannelRef channelRef))
+                lock (thisLock)
                 {
-                    channelRef.AffinityCountDecr();
-                    channelRefByAffinityKey.Remove(affinityKey);
+                    if (channelRefByAffinityKey.TryGetValue(affinityKey, out ChannelRef channelRef))
+                    {
+                        int newCount = channelRef.AffinityCountDecr();
+
+                        // We would expect it to be exactly 0, but it doesn't hurt to be cautious.
+                        if (newCount <= 0)
+                        {
+                            channelRefByAffinityKey.Remove(affinityKey);
+                        }
+                    }
                 }
-                return channelRef;
             }
         }
 
@@ -220,11 +248,14 @@ namespace Grpc.Gcp
             return new Tuple<ChannelRef, string>(channelRef, boundKey);
         }
 
+        // Note: response may be default(TResponse) in the case of a failure. We only expect to be called from
+        // protobuf-based calls anyway, so it will always be a class type, and will never be null for success cases.
+        // We can therefore check for nullity rather than having a separate "success" parameter.
         private void PostProcess<TResponse>(AffinityConfig affinityConfig, ChannelRef channelRef, string boundKey, TResponse response)
         {
             channelRef.ActiveStreamCountDecr();
-            // Process BIND or UNBIND if the method has affinity feature enabled.
-            if (affinityConfig != null)
+            // Process BIND or UNBIND if the method has affinity feature enabled, but only for successful calls.
+            if (affinityConfig != null && response != null)
             {
                 if (affinityConfig.Command == AffinityConfig.Types.Command.Bind)
                 {
@@ -234,7 +265,7 @@ namespace Grpc.Gcp
                 {
                     Unbind(boundKey);
                 }
-            }
+            }            
             
         }
 
@@ -362,9 +393,16 @@ namespace Grpc.Gcp
 
             async Task<TResponse> PostProcessPropagateResult(Task<TResponse> task)
             {
-                var response =  await task.ConfigureAwait(false);
-                PostProcess(affinityConfig, channelRef, boundKey, response);
-                return response;
+                TResponse response = default(TResponse);
+                try
+                {
+                    response = await task.ConfigureAwait(false);
+                    return response;
+                }
+                finally
+                {
+                    PostProcess(affinityConfig, channelRef, boundKey, response);
+                }
             }
         }
 
@@ -381,10 +419,16 @@ namespace Grpc.Gcp
             string boundKey = tupleResult.Item2;
 
             var callDetails = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
-            TResponse response = Calls.BlockingUnaryCall<TRequest, TResponse>(callDetails, request);
-
-            PostProcess(affinityConfig, channelRef, boundKey, response);
-            return response;
+            TResponse response = default(TResponse);
+            try
+            {
+                response = Calls.BlockingUnaryCall<TRequest, TResponse>(callDetails, request);
+                return response;
+            }
+            finally
+            {
+                PostProcess(affinityConfig, channelRef, boundKey, response);
+            }
         }
 
         /// <summary>
@@ -396,6 +440,34 @@ namespace Grpc.Gcp
             for (int i = 0; i < channelRefs.Count; i++)
             {
                 await channelRefs[i].Channel.ShutdownAsync();
+            }
+        }
+
+        // Test helper methods
+
+        /// <summary>
+        /// Returns a deep clone of the internal list of channel references.
+        /// This method should only be used in tests.
+        /// </summary>
+        internal IList<ChannelRef> GetChannelRefsForTest()
+        {
+            lock (thisLock)
+            {
+                // Create an independent copy
+                return channelRefs.Select(cr => cr.Clone()).ToList();
+            }
+        }
+
+        /// <summary>
+        /// Returns a deep clone of the internal dictionary of channel references by affinity key.
+        /// This method should only be used in tests.
+        /// </summary>
+        internal IDictionary<string, ChannelRef> GetChannelRefsByAffinityKeyForTest()
+        {
+            lock (thisLock)
+            {
+                // Create an independent copy
+                return channelRefByAffinityKey.ToDictionary(pair => pair.Key, pair => pair.Value.Clone());
             }
         }
     }
