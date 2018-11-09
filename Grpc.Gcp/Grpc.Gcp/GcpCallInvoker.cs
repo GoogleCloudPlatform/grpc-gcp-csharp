@@ -3,6 +3,7 @@ using Grpc.Core;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Grpc.Gcp
@@ -13,6 +14,8 @@ namespace Grpc.Gcp
     /// </summary
     public class GcpCallInvoker : CallInvoker
     {
+        private static int clientChannelIdCounter;
+
         public const string ApiConfigChannelArg = "grpc_gcp.api_config";
         private const string ClientChannelId = "grpc_gcp.client_channel.id";
         private const Int32 DefaultChannelPoolSize = 10;
@@ -147,8 +150,9 @@ namespace Grpc.Gcp
                 if (count < apiConfig.ChannelPool.MaxSize)
                 {
                     // Creates a new gRPC channel.
+                    GrpcEnvironment.Logger.Info("Grpc.Gcp creating new channel");
                     Channel channel = new Channel(target, credentials,
-                        options.Concat(new[] { new ChannelOption(ClientChannelId, count) }));
+                        options.Concat(new[] { new ChannelOption(ClientChannelId, Interlocked.Increment (ref clientChannelIdCounter)) }));
                     ChannelRef channelRef = new ChannelRef(channel, count);
                     channelRefs.Add(channelRef);
                     return channelRef;
