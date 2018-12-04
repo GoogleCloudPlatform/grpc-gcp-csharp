@@ -1,37 +1,44 @@
+using System.Collections.Generic;
 using System.Diagnostics;
 using Google.Cloud.Firestore.V1Beta1;
+using ProbeTestsBase;
 
 namespace FirestoreProbesTest
 {
 
-	public class FirestoreProbesTestClass
+	public class FirestoreProbesTestClass : ProbeTestsBaseClass
 	{
-		private readonly Stopwatch stopwatch;
-		private static String _PARENT_RESOURCE = "projects/cloudprober-testing/databases/(default)/documents";
-		public static Dictionary<string, string> probFunctions;
+		static private readonly Stopwatch stopwatch = new Stopwatch();
+		private static string _PARENT_RESOURCE = "projects/cloudprober-testing/databases/(default)/documents";
+		private Dictionary<string, string> probFunctions;
 
 		public FirestoreProbesTestClass()
 		{
 			//Constructor
-			this.stopwatch = new Stopwatch();
 			this.probFunctions = new Dictionary<string, string>(){
 				{"documents", "document"}
 			};
 		}
 
-		public static void document(Client client, ref Dictionary<string, long> metrics){
+		public static void document(Firestore.FirestoreClient client, ref Dictionary<string, long> metrics){
 
 			ListDocumentsRequest list_document_request = new ListDocumentsRequest();
-			list_document_request.setParent(_PARENT_RESOURCE);
+			list_document_request.Parent = _PARENT_RESOURCE;
 
-			stopwatch.Start();
-			client.ListDocuments(list_document_request);
-			stopwatch.Stop();
+            stopwatch.Start();
+            client.ListDocuments(list_document_request);
+            stopwatch.Stop();
+            
 
-			long lantency = stopwatch.ElapsedMilliseconds;
+            long lantency = stopwatch.ElapsedMilliseconds;
 			metrics.Add("list_documents_latency_ms", lantency);
 		}
-	}
+
+        public Dictionary<string, string> GetProbFunctions()
+        {
+            return this.probFunctions;
+        }
+    }
 }
 
 
