@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Google.Cloud.ErrorReporting.V1Beta1;
+using Google.Api.Gax.ResourceNames;
 
 namespace StackdriverUtil
 {
@@ -10,14 +11,14 @@ namespace StackdriverUtil
 		private string api;
 		private Dictionary<string, long> metrics;
 		private bool success;
-		private ErrorStatsService.ErrorStatsServiceClient err_client;
+		private ReportErrorsServiceClient err_client;
 
 		public StackdriverUtilClass(string api)
 		{
 			this.api = api;
 			this.metrics = new Dictionary<string, long>();
 			this.success = false;
-			this.err_client =  new ErrorStatsService.ErrorStatsServiceClient();
+			this.err_client =  ReportErrorsServiceClient.Create();
 		}
 
 		public void addMetric(string key, long val)
@@ -55,16 +56,21 @@ namespace StackdriverUtil
 			return;
 		}
 
-		public void reportError(var err)
-		{
-			// TODO
-			string projectId = "434076015357";
-			string project_name = this.err_client.ProjectName(projectId);
+        public void reportError(Exception err)
+        {
+            string projectId = "434076015357";
+            ProjectName project_name = new ProjectName(projectId);
+            string err_mssage = err.ToString();
 
-			ReportedErrorEvent error_event = new ReportedErrorEvent();
-			error_event.setMessage("CSharpProbeFailure: fails on {0} API. Details: {1}", this.api, err.ToString());
+            ReportedErrorEvent error_event = new ReportedErrorEvent();
+            ErrorContext context = new ErrorContext();
+            SourceLocation location = new SourceLocation();
+            location.FunctionName = this.api;
+            context.ReportLocation = location;
+            error_event.Context = context;
+            error_event.Message = "CSharpProbeFailure: fails on {$this.api} API. Details: {$err_message}";
 
-			this.err_client.ReportErrorEvent(project_name, error_event);
+            this.err_client.ReportErrorEvent(project_name, error_event);
 			return;
 		}
 	}
