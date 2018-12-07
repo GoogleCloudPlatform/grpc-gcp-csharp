@@ -43,11 +43,11 @@ namespace StackdriverUtil
 		{
 			if (this.success)
 			{
-				Console.WriteLine("_success 1");
+				Console.WriteLine("{0}_success 1", this.api);
 			}
 			else
 			{
-				Console.WriteLine("_success 0");
+				Console.WriteLine("{0}_success 0", this.api);
 			}
 			foreach(var ele in this.metrics)
 			{

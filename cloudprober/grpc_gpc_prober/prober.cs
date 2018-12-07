@@ -30,7 +30,13 @@ namespace ProberTest
 				return 1;
 			}
 
-			executeProbes(args[1]);
+            if (args[0] != "--api")
+            {
+                Console.WriteLine("Type (--api api_name) to continue ...");
+                return 1;
+            }
+
+            executeProbes(args[1]);
 			return 0;
 		}
 
@@ -94,6 +100,7 @@ namespace ProberTest
                 }
                 catch(Exception error)
                 {
+                    Console.WriteLine("{0}", error);
                     util.reportError(error);
                 }
             }
