@@ -24,7 +24,7 @@ namespace ProberTest
 
         static int Main(string[] args)
 		{
-            Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", "../../../../cloudprober-test-312fec66d8c5.json");
+            
             if (args.Length == 0){
 				Console.WriteLine("Please enter a numeric argument");
 				return 1;
