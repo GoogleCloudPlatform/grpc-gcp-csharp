@@ -44,7 +44,6 @@ namespace ProberTest
         {
             StackdriverUtilClass util = new StackdriverUtilClass(api);
             GoogleCredential auth = GoogleCredential.GetApplicationDefault();
-            //GoogleCredential auth = GoogleCredential.FromFile(Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS"));
             ClientBase client;
             ProbeTestsBaseClass test;
             System.Type type;
@@ -81,7 +80,6 @@ namespace ProberTest
 			Dictionary<string, long> metrics = new Dictionary<string, long>();
 
 			foreach (var probe in probe_functions){
-				Console.WriteLine("{0}", probe.Key);
 				MethodInfo fun = type.GetMethod(probe.Value);
                 object[] parameters = new object[] { client, metrics };
 

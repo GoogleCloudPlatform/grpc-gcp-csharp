@@ -9,7 +9,7 @@ namespace FirestoreProbesTest
 	public class FirestoreProbesTestClass : ProbeTestsBaseClass
 	{
 		static private readonly Stopwatch stopwatch = new Stopwatch();
-		private static string _PARENT_RESOURCE = "projects/cloudprober-test/databases/(default)/documents";
+		private static string _PARENT_RESOURCE = "projects/grpc-prober-testing/databases/(default)/documents";
 		private Dictionary<string, string> probFunctions;
 
 		public FirestoreProbesTestClass()

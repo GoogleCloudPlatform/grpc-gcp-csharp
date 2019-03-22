@@ -9,7 +9,7 @@ namespace SpannerProbesTest
     public class SpannerProbesTestClass : ProbeTestsBaseClass
     {
         private Dictionary<string, string> probFunctions;
-        private static string _DATABASE = "projects/cloudprober-test/instances/test-instance/databases/test-db";
+        private static string _DATABASE = "projects/grpc-prober-testing/instances/test-instance/databases/test-db";
         //private static string _TEST_USERNAME = "test_username";
         static private readonly Stopwatch stopwatch = new Stopwatch();
 
