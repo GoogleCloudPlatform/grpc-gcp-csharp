@@ -26,25 +26,26 @@ namespace Grpc.Gcp.IntegrationTest {
           string.Concat(
             "ChJ0ZXN0X3NlcnZpY2UucHJvdG8SGWdycGMuZ2NwLmludGVncmF0aW9uX3Rl",
             "c3QiHQoNU2ltcGxlUmVxdWVzdBIMCgRuYW1lGAEgASgJIh4KDlNpbXBsZVJl",
-            "c3BvbnNlEgwKBG5hbWUYAiABKAkiawoMQ29tcGxleElubmVyEgwKBG5hbWUY",
-            "ASABKAkSDgoGbnVtYmVyGAIgASgFEj0KDG5lc3RlZF9pbm5lchgDIAEoCzIn",
-            "LmdycGMuZ2NwLmludGVncmF0aW9uX3Rlc3QuQ29tcGxleElubmVyImYKDkNv",
-            "bXBsZXhSZXF1ZXN0EgwKBG5hbWUYASABKAkSDgoGbnVtYmVyGAIgASgFEjYK",
-            "BWlubmVyGAMgASgLMicuZ3JwYy5nY3AuaW50ZWdyYXRpb25fdGVzdC5Db21w",
-            "bGV4SW5uZXIiZwoPQ29tcGxleFJlc3BvbnNlEgwKBG5hbWUYASABKAkSDgoG",
-            "bnVtYmVyGAIgASgFEjYKBWlubmVyGAMgASgLMicuZ3JwYy5nY3AuaW50ZWdy",
-            "YXRpb25fdGVzdC5Db21wbGV4SW5uZXIy0gEKC1Rlc3RTZXJ2aWNlEl8KCERv",
-            "U2ltcGxlEiguZ3JwYy5nY3AuaW50ZWdyYXRpb25fdGVzdC5TaW1wbGVSZXF1",
-            "ZXN0GikuZ3JwYy5nY3AuaW50ZWdyYXRpb25fdGVzdC5TaW1wbGVSZXNwb25z",
-            "ZRJiCglEb0NvbXBsZXgSKS5ncnBjLmdjcC5pbnRlZ3JhdGlvbl90ZXN0LkNv",
-            "bXBsZXhSZXF1ZXN0GiouZ3JwYy5nY3AuaW50ZWdyYXRpb25fdGVzdC5Db21w",
-            "bGV4UmVzcG9uc2ViBnByb3RvMw=="));
+            "c3BvbnNlEgwKBG5hbWUYAiABKAkiqwEKDENvbXBsZXhJbm5lchIMCgRuYW1l",
+            "GAEgASgJEg4KBm51bWJlchgCIAEoBRI9CgxuZXN0ZWRfaW5uZXIYAyABKAsy",
+            "Jy5ncnBjLmdjcC5pbnRlZ3JhdGlvbl90ZXN0LkNvbXBsZXhJbm5lchI+Cg1u",
+            "ZXN0ZWRfaW5uZXJzGAQgAygLMicuZ3JwYy5nY3AuaW50ZWdyYXRpb25fdGVz",
+            "dC5Db21wbGV4SW5uZXIiZgoOQ29tcGxleFJlcXVlc3QSDAoEbmFtZRgBIAEo",
+            "CRIOCgZudW1iZXIYAiABKAUSNgoFaW5uZXIYAyABKAsyJy5ncnBjLmdjcC5p",
+            "bnRlZ3JhdGlvbl90ZXN0LkNvbXBsZXhJbm5lciJnCg9Db21wbGV4UmVzcG9u",
+            "c2USDAoEbmFtZRgBIAEoCRIOCgZudW1iZXIYAiABKAUSNgoFaW5uZXIYAyAB",
+            "KAsyJy5ncnBjLmdjcC5pbnRlZ3JhdGlvbl90ZXN0LkNvbXBsZXhJbm5lcjLS",
+            "AQoLVGVzdFNlcnZpY2USXwoIRG9TaW1wbGUSKC5ncnBjLmdjcC5pbnRlZ3Jh",
+            "dGlvbl90ZXN0LlNpbXBsZVJlcXVlc3QaKS5ncnBjLmdjcC5pbnRlZ3JhdGlv",
+            "bl90ZXN0LlNpbXBsZVJlc3BvbnNlEmIKCURvQ29tcGxleBIpLmdycGMuZ2Nw",
+            "LmludGVncmF0aW9uX3Rlc3QuQ29tcGxleFJlcXVlc3QaKi5ncnBjLmdjcC5p",
+            "bnRlZ3JhdGlvbl90ZXN0LkNvbXBsZXhSZXNwb25zZWIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { },
           new pbr::GeneratedClrTypeInfo(null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::Grpc.Gcp.IntegrationTest.SimpleRequest), global::Grpc.Gcp.IntegrationTest.SimpleRequest.Parser, new[]{ "Name" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Grpc.Gcp.IntegrationTest.SimpleResponse), global::Grpc.Gcp.IntegrationTest.SimpleResponse.Parser, new[]{ "Name" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Grpc.Gcp.IntegrationTest.ComplexInner), global::Grpc.Gcp.IntegrationTest.ComplexInner.Parser, new[]{ "Name", "Number", "NestedInner" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Grpc.Gcp.IntegrationTest.ComplexInner), global::Grpc.Gcp.IntegrationTest.ComplexInner.Parser, new[]{ "Name", "Number", "NestedInner", "NestedInners" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Grpc.Gcp.IntegrationTest.ComplexRequest), global::Grpc.Gcp.IntegrationTest.ComplexRequest.Parser, new[]{ "Name", "Number", "Inner" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Grpc.Gcp.IntegrationTest.ComplexResponse), global::Grpc.Gcp.IntegrationTest.ComplexResponse.Parser, new[]{ "Name", "Number", "Inner" }, null, null, null)
           }));
@@ -339,6 +340,7 @@ namespace Grpc.Gcp.IntegrationTest {
       name_ = other.name_;
       number_ = other.number_;
       NestedInner = other.nestedInner_ != null ? other.NestedInner.Clone() : null;
+      nestedInners_ = other.nestedInners_.Clone();
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -380,6 +382,16 @@ namespace Grpc.Gcp.IntegrationTest {
       }
     }
 
+    /// <summary>Field number for the "nested_inners" field.</summary>
+    public const int NestedInnersFieldNumber = 4;
+    private static readonly pb::FieldCodec<global::Grpc.Gcp.IntegrationTest.ComplexInner> _repeated_nestedInners_codec
+        = pb::FieldCodec.ForMessage(34, global::Grpc.Gcp.IntegrationTest.ComplexInner.Parser);
+    private readonly pbc::RepeatedField<global::Grpc.Gcp.IntegrationTest.ComplexInner> nestedInners_ = new pbc::RepeatedField<global::Grpc.Gcp.IntegrationTest.ComplexInner>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public pbc::RepeatedField<global::Grpc.Gcp.IntegrationTest.ComplexInner> NestedInners {
+      get { return nestedInners_; }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public override bool Equals(object other) {
       return Equals(other as ComplexInner);
@@ -396,6 +408,7 @@ namespace Grpc.Gcp.IntegrationTest {
       if (Name != other.Name) return false;
       if (Number != other.Number) return false;
       if (!object.Equals(NestedInner, other.NestedInner)) return false;
+      if(!nestedInners_.Equals(other.nestedInners_)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -405,6 +418,7 @@ namespace Grpc.Gcp.IntegrationTest {
       if (Name.Length != 0) hash ^= Name.GetHashCode();
       if (Number != 0) hash ^= Number.GetHashCode();
       if (nestedInner_ != null) hash ^= NestedInner.GetHashCode();
+      hash ^= nestedInners_.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -430,6 +444,7 @@ namespace Grpc.Gcp.IntegrationTest {
         output.WriteRawTag(26);
         output.WriteMessage(NestedInner);
       }
+      nestedInners_.WriteTo(output, _repeated_nestedInners_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -447,6 +462,7 @@ namespace Grpc.Gcp.IntegrationTest {
       if (nestedInner_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(NestedInner);
       }
+      size += nestedInners_.CalculateSize(_repeated_nestedInners_codec);
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -470,6 +486,7 @@ namespace Grpc.Gcp.IntegrationTest {
         }
         NestedInner.MergeFrom(other.NestedInner);
       }
+      nestedInners_.Add(other.nestedInners_);
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -494,6 +511,10 @@ namespace Grpc.Gcp.IntegrationTest {
               nestedInner_ = new global::Grpc.Gcp.IntegrationTest.ComplexInner();
             }
             input.ReadMessage(nestedInner_);
+            break;
+          }
+          case 34: {
+            nestedInners_.AddEntriesFrom(input, _repeated_nestedInners_codec);
             break;
           }
         }
