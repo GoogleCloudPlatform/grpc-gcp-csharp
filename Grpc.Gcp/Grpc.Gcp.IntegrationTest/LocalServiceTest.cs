@@ -310,7 +310,7 @@ namespace Grpc.Gcp.IntegrationTest
             var bindConfig = CreateApiConfig(affinityKey, Command.Bind);
             var unbindConfig = CreateApiConfig(affinityKey, Command.Unbind);
 
-            //First we need to Bind.
+            // First we need to Bind.
             // Bind works, we test elsewhere.
             Bind();
 
@@ -329,7 +329,7 @@ namespace Grpc.Gcp.IntegrationTest
                     // Can't unbind twice.
                 });
 
-            //Bind again so we can test sync unbind
+            // Bind again so we can test sync unbind
             Bind();
 
             // Test for Unbind sync
@@ -405,28 +405,74 @@ namespace Grpc.Gcp.IntegrationTest
             }
         }
 
-        private static IEnumerable<object[]> GetBatchAffinityData_BoundUnbind()
+        [DataTestMethod]
+        [DynamicData(nameof(BatchAffinityData), DynamicDataSourceType.Property)]
+        public async Task BatchAffinity_Unbind(string affinityKey, ComplexRequest request)
         {
-            foreach(var data in BatchAffinityData)
-            {
-                yield return Append(data, Command.Bound);
-                yield return Append(data, Command.Unbind);
-            }
+            var service = new CopyService();
+            var bindConfig = CreateApiConfig(affinityKey, Command.Bind);
+            var unbindConfig = CreateApiConfig(affinityKey, Command.Unbind);
 
-            object[] Append(object[] original, object toAppend)
+            // First we need to Bind.
+            // Bind works, we test elsewhere.
+            Bind();
+
+            // Test for Unbind async
+            await RunWithServer(
+                service,
+                unbindConfig,
+                async (invoker, client) =>
+                {
+                    await client.DoComplexAsync(request);
+                    AssertNoAffinity(invoker);
+                },
+                (invoker, client) =>
+                {
+                    // No op, we are testing unbind async here.
+                    // Can't unbind twice.
+                });
+
+            // Bind again so we can test sync unbind
+            Bind();
+
+            // Test for Unbind sync
+            await RunWithServer(
+                service,
+                unbindConfig,
+                async (invoker, client) =>
+                {
+                    // No op, we are testing unbind sync here.
+                    // Can't unbind twice.
+                    await Task.FromResult(0);
+                },
+                (invoker, client) =>
+                {
+                    client.DoComplex(request);
+                    AssertNoAffinity(invoker);
+                });
+
+            async void Bind()
             {
-                object[] appended = new object[original.Length + 1];
-                Array.Copy(original, appended, original.Length);
-                appended[original.Length] = toAppend;
-                return appended;
+                await RunWithServer(
+                    service,
+                    bindConfig,
+                    async (invoker, client) =>
+                    {
+                        await client.DoComplexAsync(request);
+                    },
+                    (invoker, client) =>
+                    {
+                        // No op, we are just binding to test unbind after.
+                        // We are not testing Bind here.
+                    });
             }
         }
 
         [DataTestMethod]
-        [DynamicData(nameof(GetBatchAffinityData_BoundUnbind), DynamicDataSourceType.Method)]
-        public async Task BatchAffinity_BoundUnbind(string affinityKey, ComplexRequest request, Command command)
+        [DynamicData(nameof(BatchAffinityData), DynamicDataSourceType.Property)]
+        public async Task BatchAffinity_Bound(string affinityKey, ComplexRequest request)
         {
-            var config = CreateApiConfig(affinityKey, command);
+            var config = CreateApiConfig(affinityKey, Command.Bound);
             await RunWithServer(
                 new CopyService(),
                 config,

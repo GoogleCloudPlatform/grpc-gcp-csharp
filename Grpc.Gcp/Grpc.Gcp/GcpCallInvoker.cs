@@ -262,30 +262,24 @@ namespace Grpc.Gcp
             }
         }
 
-        private Tuple<ChannelRef, string> PreProcess<TRequest>(AffinityConfig affinityConfig, TRequest request)
+        private ChannelRef PreProcess<TRequest>(AffinityConfig affinityConfig, TRequest request)
         {
             // Gets the affinity bound key if required in the request method.
             string boundKey = null;
-            if (affinityConfig != null)
+            if (affinityConfig != null && affinityConfig.Command == AffinityConfig.Types.Command.Bound)
             {
-                // It's not clear what would it mean to support several Bound channels or to
-                // Unbind several channels at the same time. There's no use case for it right now
-                // so we don't support it.
-                if (affinityConfig.Command == AffinityConfig.Types.Command.Bound
-                    || affinityConfig.Command == AffinityConfig.Types.Command.Unbind)
-                {
-                    boundKey = GetAffinityKeysFromProto(affinityConfig.AffinityKey, (IMessage)request).SingleOrDefault();
-                }
+                boundKey = GetAffinityKeysFromProto(affinityConfig.AffinityKey, (IMessage)request).SingleOrDefault();
             }
+
             ChannelRef channelRef = GetChannelRef(boundKey);
             channelRef.ActiveStreamCountIncr();
-            return new Tuple<ChannelRef, string>(channelRef, boundKey);
+            return channelRef;
         }
 
         // Note: response may be default(TResponse) in the case of a failure. We only expect to be called from
         // protobuf-based calls anyway, so it will always be a class type, and will never be null for success cases.
         // We can therefore check for nullity rather than having a separate "success" parameter.
-        private void PostProcess<TResponse>(AffinityConfig affinityConfig, ChannelRef channelRef, string boundKey, TResponse response)
+        private void PostProcess<TRequest, TResponse>(AffinityConfig affinityConfig, ChannelRef channelRef, TRequest request, TResponse response)
         {
             channelRef.ActiveStreamCountDecr();
             // Process BIND or UNBIND if the method has affinity feature enabled, but only for successful calls.
@@ -300,7 +294,10 @@ namespace Grpc.Gcp
                 }
                 else if (affinityConfig.Command == AffinityConfig.Types.Command.Unbind)
                 {
-                    Unbind(boundKey);
+                    foreach (string unbindingKey in GetAffinityKeysFromProto(affinityConfig.AffinityKey, (IMessage)request))
+                    {
+                        Unbind(unbindingKey);
+                    }
                 }
             }
         }
@@ -379,9 +376,7 @@ namespace Grpc.Gcp
         {
             affinityByMethod.TryGetValue(method.FullName, out AffinityConfig affinityConfig);
 
-            Tuple<ChannelRef, string> tupleResult = PreProcess(affinityConfig, request);
-            ChannelRef channelRef = tupleResult.Item1;
-            string boundKey = tupleResult.Item2;
+            ChannelRef channelRef = PreProcess(affinityConfig, request);
 
             var callDetails = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
             var originalCall = Calls.AsyncServerStreamingCall(callDetails, request);
@@ -389,7 +384,7 @@ namespace Grpc.Gcp
             // Executes affinity postprocess once the streaming response finishes its final batch.
             var gcpResponseStream = new GcpClientResponseStream<TRequest, TResponse>(
                 originalCall.ResponseStream,
-                (resp) => PostProcess(affinityConfig, channelRef, boundKey, resp));
+                (resp) => PostProcess(affinityConfig, channelRef, request, resp));
 
             // Create a wrapper of the original AsyncServerStreamingCall.
             return new AsyncServerStreamingCall<TResponse>(
@@ -409,9 +404,7 @@ namespace Grpc.Gcp
         {
             affinityByMethod.TryGetValue(method.FullName, out AffinityConfig affinityConfig);
 
-            Tuple<ChannelRef, string> tupleResult = PreProcess(affinityConfig, request);
-            ChannelRef channelRef = tupleResult.Item1;
-            string boundKey = tupleResult.Item2;
+            ChannelRef channelRef = PreProcess(affinityConfig, request);
 
             var callDetails = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
             var originalCall = Calls.AsyncUnaryCall(callDetails, request);
@@ -437,7 +430,7 @@ namespace Grpc.Gcp
                 }
                 finally
                 {
-                    PostProcess(affinityConfig, channelRef, boundKey, response);
+                    PostProcess(affinityConfig, channelRef, request, response);
                 }
             }
         }
@@ -450,9 +443,7 @@ namespace Grpc.Gcp
         {
             affinityByMethod.TryGetValue(method.FullName, out AffinityConfig affinityConfig);
 
-            Tuple<ChannelRef, string> tupleResult = PreProcess(affinityConfig, request);
-            ChannelRef channelRef = tupleResult.Item1;
-            string boundKey = tupleResult.Item2;
+            ChannelRef channelRef = PreProcess(affinityConfig, request);
 
             var callDetails = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
             TResponse response = default(TResponse);
@@ -463,7 +454,7 @@ namespace Grpc.Gcp
             }
             finally
             {
-                PostProcess(affinityConfig, channelRef, boundKey, response);
+                PostProcess(affinityConfig, channelRef, request, response);
             }
         }
 
