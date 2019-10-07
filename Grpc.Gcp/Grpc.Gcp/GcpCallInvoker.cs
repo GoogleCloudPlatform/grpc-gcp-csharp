@@ -1,4 +1,5 @@
 ﻿using Google.Protobuf;
+using Google.Protobuf.Collections;
 using Grpc.Core;
 using System;
 using System.Collections.Generic;
@@ -163,40 +164,66 @@ namespace Grpc.Gcp
             }
         }
 
-        private string GetAffinityKeyFromProto(string affinityKey, IMessage message)
+        private List<string> GetAffinityKeysFromProto(string affinityKey, IMessage message)
         {
-            if (string.IsNullOrEmpty(affinityKey))
+            List<string> affinityKeyValues = new List<string>();
+            if (!string.IsNullOrEmpty(affinityKey))
             {
-                return null;
+                string[] names = affinityKey.Split('.');
+                GetAffinityKeysFromProto(names, 0, message, affinityKeyValues);
             }
-            string[] names = affinityKey.Split('.');
-            foreach (string name in names)
+            return affinityKeyValues;
+        }
+
+        private void GetAffinityKeysFromProto(string[] names, int namesIndex, IMessage message, List<string> affinityKeyValues)
+        {
+            if (namesIndex >= names.Length)
             {
-                var field = message.Descriptor.FindFieldByName(name);
-                if (field == null)
-                {
-                    throw new InvalidOperationException($"Field {name} not present in message {message.Descriptor.Name}");
-                }
-                var accessor = field.Accessor;
-                if (accessor == null)
-                {
-                    throw new InvalidOperationException($"Field {name} in message {message.Descriptor.Name} has no accessor");
-                }
-                switch (accessor.GetValue(message))
-                {
-                    case string text:
-                        return text;
-                    case IMessage nestedMessage:
-                        message = nestedMessage;
-                        break;
-                    case null:
-                        // Probably a nested message, but with no value. Just don't use an affinity key.
-                        return null;
-                    default:
-                        throw new InvalidOperationException($"Field {name} in message {message.Descriptor.Name} is neither a string nor another message");
-                }
+                throw new InvalidOperationException($"Affinity key {string.Join(".", names)} missing field name for message {message.Descriptor.Name}.");
             }
-            throw new InvalidOperationException($"Affinity key {affinityKey} in message {message.Descriptor.Name} does not represent a path to a string value");
+
+            string name = names[namesIndex];
+            var field = message.Descriptor.FindFieldByName(name);
+            if (field == null)
+            {
+                throw new InvalidOperationException($"Field {name} not present in message {message.Descriptor.Name}");
+            }
+            var accessor = field.Accessor;
+            if (accessor == null)
+            {
+                throw new InvalidOperationException($"Field {name} in message {message.Descriptor.Name} has no accessor");
+            }
+            int lastIndex = names.Length - 1;
+            switch (accessor.GetValue(message))
+            {
+                case string text when namesIndex < lastIndex:
+                case RepeatedField<string> texts when namesIndex < lastIndex:
+                    throw new InvalidOperationException($"Field {name} in message {message.Descriptor.Name} is neither a message or repeated message field.");
+                case string text:
+                    affinityKeyValues.Add(text);
+                    break;
+                case RepeatedField<string> texts:
+                    affinityKeyValues.AddRange(texts);
+                    break;
+                case IMessage nestedMessage:
+                    GetAffinityKeysFromProto(names, namesIndex + 1, nestedMessage, affinityKeyValues);
+                    break;
+                // We can't use RepeatedField<IMessage> because RepeatedField<T> is not
+                // covariant on T. But IEnumerable<T> is covariant on T.
+                // We can safely assume that any IEnumerable<IMessage> is really
+                // a RepeatedField<T> where T is IMessage.
+                case IEnumerable<IMessage> nestedMessages:
+                    foreach (IMessage nestedMessage in nestedMessages)
+                    {
+                        GetAffinityKeysFromProto(names, namesIndex + 1, nestedMessage, affinityKeyValues);
+                    }
+                    break;
+                case null:
+                    // Probably a nested message, but with no value. Just don't use an affinity key.
+                    break;
+                default:
+                    throw new InvalidOperationException($"Field {name} in message {message.Descriptor.Name} is neither a string or repeated string field nor another message or repeated message field.");
+            }
         }
 
         private void Bind(ChannelRef channelRef, string affinityKey)
@@ -235,27 +262,24 @@ namespace Grpc.Gcp
             }
         }
 
-        private Tuple<ChannelRef, string> PreProcess<TRequest>(AffinityConfig affinityConfig, TRequest request)
+        private ChannelRef PreProcess<TRequest>(AffinityConfig affinityConfig, TRequest request)
         {
             // Gets the affinity bound key if required in the request method.
             string boundKey = null;
-            if (affinityConfig != null)
+            if (affinityConfig != null && affinityConfig.Command == AffinityConfig.Types.Command.Bound)
             {
-                if (affinityConfig.Command == AffinityConfig.Types.Command.Bound
-                    || affinityConfig.Command == AffinityConfig.Types.Command.Unbind)
-                {
-                    boundKey = GetAffinityKeyFromProto(affinityConfig.AffinityKey, (IMessage)request);
-                }
+                boundKey = GetAffinityKeysFromProto(affinityConfig.AffinityKey, (IMessage)request).SingleOrDefault();
             }
+
             ChannelRef channelRef = GetChannelRef(boundKey);
             channelRef.ActiveStreamCountIncr();
-            return new Tuple<ChannelRef, string>(channelRef, boundKey);
+            return channelRef;
         }
 
         // Note: response may be default(TResponse) in the case of a failure. We only expect to be called from
         // protobuf-based calls anyway, so it will always be a class type, and will never be null for success cases.
         // We can therefore check for nullity rather than having a separate "success" parameter.
-        private void PostProcess<TResponse>(AffinityConfig affinityConfig, ChannelRef channelRef, string boundKey, TResponse response)
+        private void PostProcess<TRequest, TResponse>(AffinityConfig affinityConfig, ChannelRef channelRef, TRequest request, TResponse response)
         {
             channelRef.ActiveStreamCountDecr();
             // Process BIND or UNBIND if the method has affinity feature enabled, but only for successful calls.
@@ -263,14 +287,19 @@ namespace Grpc.Gcp
             {
                 if (affinityConfig.Command == AffinityConfig.Types.Command.Bind)
                 {
-                    Bind(channelRef, GetAffinityKeyFromProto(affinityConfig.AffinityKey, (IMessage)response));
+                    foreach (string bindingKey in GetAffinityKeysFromProto(affinityConfig.AffinityKey, (IMessage)response))
+                    {
+                        Bind(channelRef, bindingKey);
+                    }
                 }
                 else if (affinityConfig.Command == AffinityConfig.Types.Command.Unbind)
                 {
-                    Unbind(boundKey);
+                    foreach (string unbindingKey in GetAffinityKeysFromProto(affinityConfig.AffinityKey, (IMessage)request))
+                    {
+                        Unbind(unbindingKey);
+                    }
                 }
-            }            
-            
+            }
         }
 
         /// <summary>
@@ -347,9 +376,7 @@ namespace Grpc.Gcp
         {
             affinityByMethod.TryGetValue(method.FullName, out AffinityConfig affinityConfig);
 
-            Tuple<ChannelRef, string> tupleResult = PreProcess(affinityConfig, request);
-            ChannelRef channelRef = tupleResult.Item1;
-            string boundKey = tupleResult.Item2;
+            ChannelRef channelRef = PreProcess(affinityConfig, request);
 
             var callDetails = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
             var originalCall = Calls.AsyncServerStreamingCall(callDetails, request);
@@ -357,7 +384,7 @@ namespace Grpc.Gcp
             // Executes affinity postprocess once the streaming response finishes its final batch.
             var gcpResponseStream = new GcpClientResponseStream<TRequest, TResponse>(
                 originalCall.ResponseStream,
-                (resp) => PostProcess(affinityConfig, channelRef, boundKey, resp));
+                (resp) => PostProcess(affinityConfig, channelRef, request, resp));
 
             // Create a wrapper of the original AsyncServerStreamingCall.
             return new AsyncServerStreamingCall<TResponse>(
@@ -377,9 +404,7 @@ namespace Grpc.Gcp
         {
             affinityByMethod.TryGetValue(method.FullName, out AffinityConfig affinityConfig);
 
-            Tuple<ChannelRef, string> tupleResult = PreProcess(affinityConfig, request);
-            ChannelRef channelRef = tupleResult.Item1;
-            string boundKey = tupleResult.Item2;
+            ChannelRef channelRef = PreProcess(affinityConfig, request);
 
             var callDetails = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
             var originalCall = Calls.AsyncUnaryCall(callDetails, request);
@@ -405,7 +430,7 @@ namespace Grpc.Gcp
                 }
                 finally
                 {
-                    PostProcess(affinityConfig, channelRef, boundKey, response);
+                    PostProcess(affinityConfig, channelRef, request, response);
                 }
             }
         }
@@ -418,9 +443,7 @@ namespace Grpc.Gcp
         {
             affinityByMethod.TryGetValue(method.FullName, out AffinityConfig affinityConfig);
 
-            Tuple<ChannelRef, string> tupleResult = PreProcess(affinityConfig, request);
-            ChannelRef channelRef = tupleResult.Item1;
-            string boundKey = tupleResult.Item2;
+            ChannelRef channelRef = PreProcess(affinityConfig, request);
 
             var callDetails = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
             TResponse response = default(TResponse);
@@ -431,7 +454,7 @@ namespace Grpc.Gcp
             }
             finally
             {
-                PostProcess(affinityConfig, channelRef, boundKey, response);
+                PostProcess(affinityConfig, channelRef, request, response);
             }
         }
 

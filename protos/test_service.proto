@@ -26,6 +26,7 @@ message ComplexInner {
   string name = 1;
   int32 number = 2;
   ComplexInner nested_inner = 3;
+  repeated ComplexInner nested_inners = 4;
 }
 
 message ComplexRequest {
