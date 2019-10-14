@@ -13,11 +13,12 @@
     <RepositoryUrl>https://github.com/GoogleCloudPlatform/grpc-gcp-csharp</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>Google;Cloud;Grpc;GCP</PackageTags>
-    <Version>1.1.1</Version>
-    <PackageReleaseNotes>Grpc.Gcp v1.1.1
-- Fix bug to avoid subchannel reuse among same process.</PackageReleaseNotes>
+    <Version>1.2.0</Version>
+    <PackageReleaseNotes>Grpc.Gcp v1.2.0
+- Add support for channel affinity batch binding and unbinding.</PackageReleaseNotes>
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>../keys/Grpc.Gcp.snk</AssemblyOriginatorKeyFile>
+    <DelaySign></DelaySign>
   </PropertyGroup>
 
   <!--
