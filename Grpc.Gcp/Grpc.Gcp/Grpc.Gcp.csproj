@@ -13,9 +13,9 @@
     <RepositoryUrl>https://github.com/GoogleCloudPlatform/grpc-gcp-csharp</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>Google;Cloud;Grpc;GCP</PackageTags>
-    <Version>1.2.0</Version>
-    <PackageReleaseNotes>Grpc.Gcp v1.2.0
-- Add support for channel affinity batch binding and unbinding.</PackageReleaseNotes>
+    <Version>2.0.0</Version>
+    <PackageReleaseNotes>Grpc.Gcp v2.0.0
+- Upgrade gRPC version to v2.25.0</PackageReleaseNotes>
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>../keys/Grpc.Gcp.snk</AssemblyOriginatorKeyFile>
     <DelaySign></DelaySign>
