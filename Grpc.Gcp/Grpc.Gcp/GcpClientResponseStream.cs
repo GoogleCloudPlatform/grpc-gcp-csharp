@@ -60,10 +60,5 @@ namespace Grpc.Gcp
                 }
             }
         }
-
-        public void Dispose()
-        {
-            originalStreamReader.Dispose();
-        }
     }
 }
