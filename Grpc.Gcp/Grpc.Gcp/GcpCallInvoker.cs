@@ -12,7 +12,7 @@ namespace Grpc.Gcp
     /// <summary>
     /// Invokes client RPCs using <see cref="Calls"/>.
     /// Calls are made through underlying gcp channel pool.
-    /// </summary
+    /// </summary>
     public class GcpCallInvoker : CallInvoker
     {
         private static int clientChannelIdCounter;
