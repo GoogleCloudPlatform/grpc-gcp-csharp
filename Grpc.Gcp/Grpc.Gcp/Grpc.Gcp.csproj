@@ -1,9 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="..\Common.csproj.include" />
-
   <PropertyGroup>
-    <TargetFrameworks>net45;netstandard1.5</TargetFrameworks>
+    <TargetFrameworks>net45;netstandard2.0</TargetFrameworks>
     <Company>Google Inc.</Company>
     <Authors>Google Inc.</Authors>
     <Description>Extension supporting Google Cloud Platform specific features for gRPC.</Description>
@@ -18,15 +16,6 @@
 - Upgrade gRPC version to v2.25.0</PackageReleaseNotes>
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>../keys/Grpc.Gcp.snk</AssemblyOriginatorKeyFile>
-    <DelaySign></DelaySign>
-  </PropertyGroup>
-
-  <!--
-    - Override target frameworks on non-Windows to just .NET Standard
-    -->
-  <PropertyGroup Condition="'$(OS)' != 'Windows_NT'">
-    <TargetFrameworks>netstandard1.5</TargetFrameworks>
-    <PublicSign>true</PublicSign>
   </PropertyGroup>
 
   <ItemGroup>
