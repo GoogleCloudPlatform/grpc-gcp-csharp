@@ -173,7 +173,7 @@ namespace Grpc.Gcp
             }
         }
 
-        private List<string> GetAffinityKeysFromProto(string affinityKey, IMessage message)
+        private static List<string> GetAffinityKeysFromProto(string affinityKey, IMessage message)
         {
             List<string> affinityKeyValues = new List<string>();
             if (!string.IsNullOrEmpty(affinityKey))
@@ -184,7 +184,7 @@ namespace Grpc.Gcp
             return affinityKeyValues;
         }
 
-        private void GetAffinityKeysFromProto(string[] names, int namesIndex, IMessage message, List<string> affinityKeyValues)
+        private static void GetAffinityKeysFromProto(string[] names, int namesIndex, IMessage message, List<string> affinityKeyValues)
         {
             if (namesIndex >= names.Length)
             {
