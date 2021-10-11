@@ -8,7 +8,7 @@ namespace Grpc.Gcp
     // /// <summary>
     // /// Encapsulates creation of new channels.
     // /// </summary>
-    // internal sealed class ChannelRefFactoryGrpcCore : ChannelRefFactory
+    // public sealed class ChannelRefFactoryGrpcCore : ChannelRefFactory
     // {
     //     private const string ClientChannelId = "grpc_gcp.client_channel.id";
     //     // TODO: in theory the counter can overflow
@@ -25,7 +25,7 @@ namespace Grpc.Gcp
     //         this.channelOptions = channelOptions;
     //     }
 
-    //     public override ChannelRef CreateChannelRef(int id)
+    //     internal override ChannelRef CreateChannelRef(int id)
     //     {
     //         // Creates a new gRPC channel.
     //         GrpcEnvironment.Logger.Info("Grpc.Gcp creating new channel");

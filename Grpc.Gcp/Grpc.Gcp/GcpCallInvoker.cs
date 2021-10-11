@@ -50,7 +50,7 @@ namespace Grpc.Gcp
         /// </summary>
         /// <param name="channleRefFactory">Target of the underlying grpc channels.</param>
         /// <param name="apiConfig">API config represented as a JSON string.</param>
-        internal GcpCallInvoker(ChannelRefFactory channelRefFactory, string apiConfigJson)
+        public GcpCallInvoker(ChannelRefFactory channelRefFactory, string apiConfigJson)
         {
             // TODO: check channelRefFactory not null
             this.channelRefFactory = channelRefFactory;

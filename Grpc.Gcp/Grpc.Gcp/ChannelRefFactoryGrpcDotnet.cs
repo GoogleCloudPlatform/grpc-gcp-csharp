@@ -9,7 +9,7 @@ namespace Grpc.Gcp
     /// <summary>
     /// Encapsulates creation of new channels.
     /// </summary>
-    internal sealed class ChannelRefFactoryGrpcDotnet : ChannelRefFactory
+    public sealed class ChannelRefFactoryGrpcDotnet : ChannelRefFactory
     {
         private readonly string target;
 
@@ -18,7 +18,7 @@ namespace Grpc.Gcp
             this.target = target;
         }
 
-        public override ChannelRef CreateChannelRef(int id)
+        internal override ChannelRef CreateChannelRef(int id)
         {
             // TODO: add a message to log
             //GrpcEnvironment.Logger.Info("Grpc.Gcp creating new channel");

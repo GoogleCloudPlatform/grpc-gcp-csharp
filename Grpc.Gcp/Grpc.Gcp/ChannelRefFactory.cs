@@ -9,9 +9,9 @@ namespace Grpc.Gcp
     /// <summary>
     /// Encapsulates creation of new channels.
     /// </summary>
-    internal abstract class ChannelRefFactory
+    public abstract class ChannelRefFactory
     {
-        public virtual ChannelRef CreateChannelRef(int id)
+        internal virtual ChannelRef CreateChannelRef(int id)
         {
             throw new NotImplementedException();
         }
