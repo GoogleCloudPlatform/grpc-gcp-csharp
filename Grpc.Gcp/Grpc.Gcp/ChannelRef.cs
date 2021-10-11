@@ -13,7 +13,7 @@ namespace Grpc.Gcp
         private int activeStreamCount;
         private int id;
 
-        public ChannelRef(Channel channel, int id, int affinityCount = 0, int activeStreamCount = 0)
+        public ChannelRef(ChannelBase channel, int id, int affinityCount = 0, int activeStreamCount = 0)
         {
             Channel = channel;
             CallInvoker = channel.CreateCallInvoker();
@@ -22,7 +22,7 @@ namespace Grpc.Gcp
             this.activeStreamCount = activeStreamCount;
         }
 
-        internal Channel Channel { get; }
+        internal ChannelBase Channel { get; }
         internal CallInvoker CallInvoker { get; }
         internal int AffinityCount => Interlocked.CompareExchange(ref affinityCount, 0, 0);
         internal int ActiveStreamCount => Interlocked.CompareExchange(ref activeStreamCount, 0, 0);

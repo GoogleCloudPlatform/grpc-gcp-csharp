@@ -470,6 +470,9 @@ namespace Grpc.Gcp
         {
             for (int i = 0; i < channelRefs.Count; i++)
             {
+                // TODO: it seems that grpc-dotnet doesn't actually override this method (and so for 
+                // grpc-dotnet this is a no-op).
+                // only GrpcChannel.Dispose() actually does something.
                 await channelRefs[i].Channel.ShutdownAsync();
             }
         }
