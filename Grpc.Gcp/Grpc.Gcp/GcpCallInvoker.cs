@@ -311,8 +311,7 @@ namespace Grpc.Gcp
         {
             // No channel affinity feature for client streaming call.
             ChannelRef channelRef = GetChannelRef();
-            var callDetails = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
-            var originalCall = Calls.AsyncClientStreamingCall(callDetails);
+            var originalCall = channelRef.CallInvoker.AsyncClientStreamingCall(method, host, options);
 
             // Decrease the active streams count once async response finishes.
             var gcpResponseAsync = DecrementCountAndPropagateResult(originalCall.ResponseAsync);
@@ -349,8 +348,7 @@ namespace Grpc.Gcp
         {
             // No channel affinity feature for duplex streaming call.
             ChannelRef channelRef = GetChannelRef();
-            var callDetails = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
-            var originalCall = Calls.AsyncDuplexStreamingCall(callDetails);
+            var originalCall = channelRef.CallInvoker.AsyncDuplexStreamingCall(method, host, options);
 
             // Decrease the active streams count once the streaming response finishes its final batch.
             var gcpResponseStream = new GcpClientResponseStream<TRequest, TResponse>(
@@ -378,8 +376,7 @@ namespace Grpc.Gcp
 
             ChannelRef channelRef = PreProcess(affinityConfig, request);
 
-            var callDetails = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
-            var originalCall = Calls.AsyncServerStreamingCall(callDetails, request);
+            var originalCall = channelRef.CallInvoker.AsyncServerStreamingCall(method, host, options, request);
 
             // Executes affinity postprocess once the streaming response finishes its final batch.
             var gcpResponseStream = new GcpClientResponseStream<TRequest, TResponse>(
@@ -406,8 +403,7 @@ namespace Grpc.Gcp
 
             ChannelRef channelRef = PreProcess(affinityConfig, request);
 
-            var callDetails = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
-            var originalCall = Calls.AsyncUnaryCall(callDetails, request);
+            var originalCall = channelRef.CallInvoker.AsyncUnaryCall<TRequest, TResponse>(method, host, options, request);
 
             // Executes affinity postprocess once the async response finishes.
             var gcpResponseAsync = PostProcessPropagateResult(originalCall.ResponseAsync);
@@ -445,11 +441,10 @@ namespace Grpc.Gcp
 
             ChannelRef channelRef = PreProcess(affinityConfig, request);
 
-            var callDetails = new CallInvocationDetails<TRequest, TResponse>(channelRef.Channel, method, host, options);
             TResponse response = default(TResponse);
             try
             {
-                response = Calls.BlockingUnaryCall<TRequest, TResponse>(callDetails, request);
+                response = channelRef.CallInvoker.BlockingUnaryCall<TRequest, TResponse>(method, host, options, request);
                 return response;
             }
             finally
