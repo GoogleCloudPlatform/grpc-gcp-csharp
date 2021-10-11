@@ -38,35 +38,11 @@ namespace Grpc.Gcp
         /// <param name="options">Channel options to be used by the underlying grpc channels.</param>
         public GcpCallInvoker(string target, ChannelCredentials credentials, IEnumerable<ChannelOption> options = null)
         {
-            this.apiConfig = InitDefaultApiConfig();
+            this.apiConfig = CreateApiConfigFromChannelOptionsOrDefault(options);
+            this.affinityByMethod = CreateAffinityByMethodIndex(this.apiConfig);
 
-            var otherOptions = new List<ChannelOption>();  // options other than ApiConfigChannelArg
-            if (options != null)
-            {
-                ChannelOption option = options.FirstOrDefault(opt => opt.Name == ApiConfigChannelArg);
-                if (option != null)
-                {
-                    try
-                    {
-                        this.apiConfig = ApiConfig.Parser.ParseJson(option.StringValue);
-                    }
-                    catch (Exception ex)
-                    {
-                        if (ex is InvalidOperationException || ex is InvalidJsonException || ex is InvalidProtocolBufferException)
-                        {
-                            throw new ArgumentException("Invalid API config!", ex);
-                        }
-                        throw;
-                    }
-                    if (this.apiConfig.ChannelPool == null)
-                    {
-                        throw new ArgumentException("Invalid API config: no channel pool settings");
-                    }
-                }
-                otherOptions.AddRange(options.Where(o => o.Name != ApiConfigChannelArg));
-            }
-
-            this.affinityByMethod = InitAffinityByMethodIndex(apiConfig);
+            // options other than ApiConfigChannelArg
+            var otherOptions = options != null ? options.Where(o => o.Name != ApiConfigChannelArg).ToList() : new List<ChannelOption>();
             this.channelRefFactory = new ChannelRefFactory(target, credentials, otherOptions);
         }
 
@@ -81,7 +57,7 @@ namespace Grpc.Gcp
             this($"{host}:{port}", credentials, options)
         { }
 
-        private ApiConfig InitDefaultApiConfig() =>
+        private static ApiConfig CreateDefaultApiConfig() =>
             new ApiConfig
             {
                 ChannelPool = new ChannelPoolConfig
@@ -91,7 +67,53 @@ namespace Grpc.Gcp
                 }
             };
 
-        private IDictionary<string, AffinityConfig> InitAffinityByMethodIndex(ApiConfig config)
+        private static ApiConfig CreateApiConfigFromChannelOptionsOrDefault(IEnumerable<ChannelOption> options)
+        {
+            var option = options?.FirstOrDefault(opt => opt.Name == ApiConfigChannelArg);
+            if (option == null)
+            {
+                return CreateDefaultApiConfig();
+            }
+
+            string jsonString;
+            try
+            {
+                jsonString = option.StringValue;
+            }
+            catch (InvalidOperationException ex)
+            {
+                throw new ArgumentException($"Invalid API config: channel option \"{ApiConfigChannelArg}\" must be of type string", ex);
+            }
+            return CreateApiConfigFromJsonOrDefault(jsonString);
+        }
+
+        private static ApiConfig CreateApiConfigFromJsonOrDefault(string json)
+        {
+            if (json == null)
+            {
+                return CreateDefaultApiConfig();
+            }
+            ApiConfig apiConfig;
+            try
+            {
+                apiConfig = ApiConfig.Parser.ParseJson(json);
+            }
+            catch (Exception ex)
+            {
+                if (ex is InvalidJsonException || ex is InvalidProtocolBufferException)
+                {
+                    throw new ArgumentException("Invalid API config!", ex);
+                }
+                throw;
+            }
+            if (apiConfig.ChannelPool == null)
+            {
+                throw new ArgumentException("Invalid API config: no channel pool settings");
+            }
+            return apiConfig;
+        }
+
+        private static IDictionary<string, AffinityConfig> CreateAffinityByMethodIndex(ApiConfig config)
         {
             IDictionary<string, AffinityConfig> index = new Dictionary<string, AffinityConfig>();
             if (config != null)
