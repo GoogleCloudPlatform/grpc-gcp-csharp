@@ -15,10 +15,8 @@ namespace Grpc.Gcp
     /// </summary>
     public class GcpCallInvoker : CallInvoker
     {
-        private static int clientChannelIdCounter;
-
         public const string ApiConfigChannelArg = "grpc_gcp.api_config";
-        private const string ClientChannelId = "grpc_gcp.client_channel.id";
+
         private const Int32 DefaultChannelPoolSize = 10;
         private const Int32 DefaultMaxCurrentStreams = 100;
 
@@ -28,11 +26,9 @@ namespace Grpc.Gcp
         private readonly IList<ChannelRef> channelRefs = new List<ChannelRef>();
 
         // Access to these fields does not need to be protected by the lock: the objects are never modified.
-        private readonly string target;
+        private readonly ChannelRefFactory channelRefFactory;
         private readonly ApiConfig apiConfig;
         private readonly IDictionary<string, AffinityConfig> affinityByMethod;
-        private readonly ChannelCredentials credentials;
-        private readonly IEnumerable<ChannelOption> options;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Grpc.Gcp.GcpCallInvoker"/> class.
@@ -42,10 +38,9 @@ namespace Grpc.Gcp
         /// <param name="options">Channel options to be used by the underlying grpc channels.</param>
         public GcpCallInvoker(string target, ChannelCredentials credentials, IEnumerable<ChannelOption> options = null)
         {
-            this.target = target;
-            this.credentials = credentials;
             this.apiConfig = InitDefaultApiConfig();
 
+            var otherOptions = new List<ChannelOption>();  // options other than ApiConfigChannelArg
             if (options != null)
             {
                 ChannelOption option = options.FirstOrDefault(opt => opt.Name == ApiConfigChannelArg);
@@ -53,7 +48,7 @@ namespace Grpc.Gcp
                 {
                     try
                     {
-                        apiConfig = ApiConfig.Parser.ParseJson(option.StringValue);
+                        this.apiConfig = ApiConfig.Parser.ParseJson(option.StringValue);
                     }
                     catch (Exception ex)
                     {
@@ -63,19 +58,16 @@ namespace Grpc.Gcp
                         }
                         throw;
                     }
-                    if (apiConfig.ChannelPool == null)
+                    if (this.apiConfig.ChannelPool == null)
                     {
                         throw new ArgumentException("Invalid API config: no channel pool settings");
                     }
                 }
-                this.options = options.Where(o => o.Name != ApiConfigChannelArg).ToList();
-            }
-            else
-            {
-                this.options = Enumerable.Empty<ChannelOption>();
+                otherOptions.AddRange(options.Where(o => o.Name != ApiConfigChannelArg));
             }
 
-            affinityByMethod = InitAffinityByMethodIndex(apiConfig);
+            this.affinityByMethod = InitAffinityByMethodIndex(apiConfig);
+            this.channelRefFactory = new ChannelRefFactory(target, credentials, otherOptions);
         }
 
         /// <summary>
@@ -150,11 +142,7 @@ namespace Grpc.Gcp
                 int count = channelRefs.Count;
                 if (count < apiConfig.ChannelPool.MaxSize)
                 {
-                    // Creates a new gRPC channel.
-                    GrpcEnvironment.Logger.Info("Grpc.Gcp creating new channel");
-                    Channel channel = new Channel(target, credentials,
-                        options.Concat(new[] { new ChannelOption(ClientChannelId, Interlocked.Increment (ref clientChannelIdCounter)) }));
-                    ChannelRef channelRef = new ChannelRef(channel, count);
+                    var channelRef = channelRefFactory.CreateChannelRef(count);
                     channelRefs.Add(channelRef);
                     return channelRef;
                 }
