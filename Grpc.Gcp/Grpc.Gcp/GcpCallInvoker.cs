@@ -29,32 +29,45 @@ namespace Grpc.Gcp
         private readonly ApiConfig apiConfig;
         private readonly IDictionary<string, AffinityConfig> affinityByMethod;
 
+        // /// <summary>
+        // /// Initializes a new instance of the <see cref="Grpc.Gcp.GcpCallInvoker"/> class.
+        // /// </summary>
+        // /// <param name="target">Target of the underlying grpc channels.</param>
+        // /// <param name="credentials">Credentials to secure the underlying grpc channels.</param>
+        // /// <param name="options">Channel options to be used by the underlying grpc channels.</param>
+        // public GcpCallInvoker(string target, ChannelCredentials credentials, IEnumerable<ChannelOption> options = null)
+        // {
+        //     this.apiConfig = CreateApiConfigFromChannelOptionsOrDefault(options);
+        //     this.affinityByMethod = CreateAffinityByMethodIndex(this.apiConfig);
+
+        //     // options other than ApiConfigChannelArg
+        //     var otherOptions = options != null ? options.Where(o => o.Name != ApiConfigChannelArg).ToList() : new List<ChannelOption>();
+        //     this.channelRefFactory = new ChannelRefFactory(target, credentials, otherOptions);
+        // }
+
         /// <summary>
         /// Initializes a new instance of the <see cref="Grpc.Gcp.GcpCallInvoker"/> class.
         /// </summary>
-        /// <param name="target">Target of the underlying grpc channels.</param>
-        /// <param name="credentials">Credentials to secure the underlying grpc channels.</param>
-        /// <param name="options">Channel options to be used by the underlying grpc channels.</param>
-        public GcpCallInvoker(string target, ChannelCredentials credentials, IEnumerable<ChannelOption> options = null)
+        /// <param name="channleRefFactory">Target of the underlying grpc channels.</param>
+        /// <param name="apiConfig">API config represented as a JSON string.</param>
+        internal GcpCallInvoker(ChannelRefFactory channelRefFactory, string apiConfigJson)
         {
-            this.apiConfig = CreateApiConfigFromChannelOptionsOrDefault(options);
+            // TODO: check channelRefFactory not null
+            this.channelRefFactory = channelRefFactory;
+            this.apiConfig = CreateApiConfigFromJsonOrDefault(apiConfigJson);
             this.affinityByMethod = CreateAffinityByMethodIndex(this.apiConfig);
-
-            // options other than ApiConfigChannelArg
-            var otherOptions = options != null ? options.Where(o => o.Name != ApiConfigChannelArg).ToList() : new List<ChannelOption>();
-            this.channelRefFactory = new ChannelRefFactory(target, credentials, otherOptions);
         }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="Grpc.Gcp.GcpCallInvoker"/> class.
-        /// </summary>
-        /// <param name="host">Hostname of target.</param>
-        /// <param name="port">Port number of target</param>
-        /// <param name="credentials">Credentials to secure the underlying grpc channels.</param>
-        /// <param name="options">Channel options to be used by the underlying grpc channels.</param>
-        public GcpCallInvoker(string host, int port, ChannelCredentials credentials, IEnumerable<ChannelOption> options = null) :
-            this($"{host}:{port}", credentials, options)
-        { }
+        // /// <summary>
+        // /// Initializes a new instance of the <see cref="Grpc.Gcp.GcpCallInvoker"/> class.
+        // /// </summary>
+        // /// <param name="host">Hostname of target.</param>
+        // /// <param name="port">Port number of target</param>
+        // /// <param name="credentials">Credentials to secure the underlying grpc channels.</param>
+        // /// <param name="options">Channel options to be used by the underlying grpc channels.</param>
+        // public GcpCallInvoker(string host, int port, ChannelCredentials credentials, IEnumerable<ChannelOption> options = null) :
+        //     this($"{host}:{port}", credentials, options)
+        // { }
 
         private static ApiConfig CreateDefaultApiConfig() =>
             new ApiConfig
@@ -66,25 +79,25 @@ namespace Grpc.Gcp
                 }
             };
 
-        private static ApiConfig CreateApiConfigFromChannelOptionsOrDefault(IEnumerable<ChannelOption> options)
-        {
-            var option = options?.FirstOrDefault(opt => opt.Name == ApiConfigChannelArg);
-            if (option == null)
-            {
-                return CreateDefaultApiConfig();
-            }
+        // private static ApiConfig CreateApiConfigFromChannelOptionsOrDefault(IEnumerable<ChannelOption> options)
+        // {
+        //     var option = options?.FirstOrDefault(opt => opt.Name == ApiConfigChannelArg);
+        //     if (option == null)
+        //     {
+        //         return CreateDefaultApiConfig();
+        //     }
 
-            string jsonString;
-            try
-            {
-                jsonString = option.StringValue;
-            }
-            catch (InvalidOperationException ex)
-            {
-                throw new ArgumentException($"Invalid API config: channel option \"{ApiConfigChannelArg}\" must be of type string", ex);
-            }
-            return CreateApiConfigFromJsonOrDefault(jsonString);
-        }
+        //     string jsonString;
+        //     try
+        //     {
+        //         jsonString = option.StringValue;
+        //     }
+        //     catch (InvalidOperationException ex)
+        //     {
+        //         throw new ArgumentException($"Invalid API config: channel option \"{ApiConfigChannelArg}\" must be of type string", ex);
+        //     }
+        //     return CreateApiConfigFromJsonOrDefault(jsonString);
+        // }
 
         private static ApiConfig CreateApiConfigFromJsonOrDefault(string json)
         {
