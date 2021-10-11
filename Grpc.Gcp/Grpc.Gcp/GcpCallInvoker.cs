@@ -10,8 +10,7 @@ using System.Threading.Tasks;
 namespace Grpc.Gcp
 {
     /// <summary>
-    /// Invokes client RPCs using <see cref="Calls"/>.
-    /// Calls are made through underlying gcp channel pool.
+    /// Invokes client RPCs using an underlying channel pool.
     /// </summary>
     public class GcpCallInvoker : CallInvoker
     {
